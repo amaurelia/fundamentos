@@ -7,11 +7,11 @@ print("  2. Programación   — $230.000")
 print("  3. Cyberseguridad — $270.000")
 print()
 
-curso = input("Seleccione un curso (1-3): ").strip()
+curso = input("Seleccione un curso (1-3): ")
 
 while curso != "1" and curso != "2" and curso != "3":
     print("Opción no válida.")
-    curso = input("Seleccione un curso (1-3): ").strip()
+    curso = input("Seleccione un curso (1-3): ")
 
 if curso == "1":
     nombre = "Liderazgo"
@@ -37,4 +37,3 @@ else:
 print(f"¡Descuento del {int(porcentaje * 100)}% aplicado por obtener una nota de {nota}!")
 total = precio * (1 - porcentaje)
 print(f"Total a pagar por el curso de {nombre}: ${round(total)}.")
-print()

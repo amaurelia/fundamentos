@@ -27,4 +27,3 @@ else:
 
 total_final = subtotal * (1 - descuento)
 print(f"Total a pagar por {cantidad} entradas {tipo}: ${round(total_final)}.")
-print()

@@ -1,14 +1,12 @@
 print("=== Tienda de Ropa ===")
 print()
 
-
 print("Ropa disponible:")
 print("Faldas — $10.000")
 print("Blusas — $5.500")
 print("Pantalones — $5.000")
 print("Chaquetas — $14.000")
 print()
-
 
 faldas = input("¿Cuántas faldas desea comprar?: ")
 blusas = input("¿Cuántas blusas desea comprar?: ")
@@ -30,7 +28,6 @@ print(f"Chaquetas: {chaquetas} x $14.000 = ${total_chaquetas}")
 print(f"Total sin descuento: ${total}")
 print()
 
-
 codigo = input("Ingrese un código de descuento (si tiene): ")
 
 match codigo:
@@ -49,4 +46,3 @@ match codigo:
 
 total_final = total * (1 - descuento)
 print(f"Total a pagar: ${round(total_final)}.")
-print()
