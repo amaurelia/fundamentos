@@ -23,18 +23,33 @@ git clone https://github.com/amaurelia/fundamentos.git
 
 ```
 fundamentos/
-├── Material de estudio/     # Ejemplos de código para estudiar
-│   ├── variables.py         # Variables y tipos de datos
-│   ├── entrada.py           # Entrada de datos por teclado
-│   ├── salida.py            # Salida de datos por pantalla
-│   ├── condicional.py       # Estructuras condicionales (if/else)
-│   ├── ciclo_for.py         # Ciclo for
-│   ├── ciclo_while.py       # Ciclo while
-│   ├── match.py             # Estructura match (switch)
-│   ├── menu.py              # Ejemplo de menú interactivo
-│   └── excepciones.py       # Manejo de excepciones
-└── Ejercicios/              # Ejercicios para practicar
-    └── avistamientos.py
+├── Material de estudio/         # Ejemplos de código para estudiar
+│   ├── variables.py             # Variables y tipos de datos
+│   ├── entrada.py               # Entrada de datos por teclado
+│   ├── salida.py                # Salida de datos por pantalla
+│   ├── condicional.py           # Estructuras condicionales (if/else)
+│   ├── ciclo_for.py             # Ciclo for
+│   ├── ciclo_while.py           # Ciclo while
+│   ├── match.py                 # Estructura match (switch)
+│   ├── menu.py                  # Ejemplo de menú interactivo
+│   └── excepciones.py           # Manejo de excepciones
+├── Ejercicios Menú/             # Ejercicios de menús interactivos
+│   ├── avistamientos.py
+│   ├── banco.py
+│   ├── cantante.py
+│   ├── combo.py
+│   ├── libros.py
+│   ├── promedio.py
+│   └── auto.py
+├── Ejercicios Descuentos/       # Ejercicios de descuentos y promociones
+│   ├── ropa.py
+│   ├── cine.py
+│   └── cursos.py
+└── Ejercicios Random/           # Ejercicios de números aleatorios
+    ├── dados.py
+    ├── personajes.py
+    ├── acciones.py
+    └── loteria.py
 ```
 
 ---
@@ -55,12 +70,16 @@ Carpeta con ejemplos listos para revisar y ejecutar, organizados por tema:
 
 ### 🏋️ Ejercicios
 
-Carpeta con ejercicios propuestos para que los alumnos practiquen los conceptos estudiados.
+Tres carpetas con ejercicios propuestos para que los alumnos practiquen los conceptos estudiados:
+
+- **Ejercicios Menú** — programas con menús interactivos (avistamientos, banco, cantante, combo, libros, promedio, auto)
+- **Ejercicios Descuentos** — cálculo de descuentos con códigos, cantidad y notas (ropa, cine, cursos)
+- **Ejercicios Random** — uso de números aleatorios (dados, personajes, acciones, lotería)
 
 ---
 
 ## Autor
 
 **Alvaro Maurelia**  
-📧 [al.maurelia@profesorl.duoc.cl](mailto:al.maurelia@profesorl.duoc.cl)
+📧 [al.maurelia@profesor.duoc.cl](mailto:al.maurelia@profesor.duoc.cl)
 
