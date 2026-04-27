@@ -1,12 +1,15 @@
+print("=== Bienvenido al sistema de votación para el mejor cantante ===")
+
 votos_michael_jackson = 0
 votos_madonna = 0
 votos_david_bowie = 0
 opcion = 0
 while opcion!=4:
-    opcion = int(input("Ingrese una opción (1:Votar | 2:Ver resultados | 3:Ver ganador | 4:Salir): "))
+    opcion = int(input("\nIngrese una opción (1:Votar | 2:Ver resultados | 3:Ver ganador | 4:Salir): "))
     match opcion:
         case 1:
-            voto = int(input("Ingrese una opción (1:Votar por Michael Jackson | 2:Votar por Madonna | 3:Votar por David Bowie | 4:Salir): "))
+            print("\n *** Votar ***")
+            voto = int(input("\nIngrese una opción (1:Votar por Michael Jackson | 2:Votar por Madonna | 3:Votar por David Bowie | 4:Salir): "))
             match voto:
                 case 1:
                     print("Votar por Michael Jackson")
@@ -20,15 +23,15 @@ while opcion!=4:
                     print("Votar por David Bowie")
                     votos_david_bowie += 1
                     print("Voto registrado")
-                case default:
+                case _:
                     print("Opción no válida")   
         case 2:
-            print("Ver resultados")
+            print("\n *** Ver resultados ***")
             print(f"Michael Jackson: {votos_michael_jackson} votos")
             print(f"Madonna: {votos_madonna} votos")
             print(f"David Bowie: {votos_david_bowie} votos")
         case 3:
-            print("Ver ganador")
+            print("\n *** Ver ganador ***")
             if votos_michael_jackson > votos_madonna and votos_michael_jackson > votos_david_bowie:
                 print("El ganador es Michael Jackson")
             elif votos_madonna > votos_michael_jackson and votos_madonna > votos_david_bowie:
@@ -38,4 +41,4 @@ while opcion!=4:
             else:
                 print("Hay un empate")
         case 4:
-            print("Salir")
+            print("\n *** Salir ***")

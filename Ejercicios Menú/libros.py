@@ -1,3 +1,5 @@
+print("=== Bienvenido al sistema de registro de libros ===")
+
 titulo1 = ""
 autor1 = ""
 anio1 = 0
@@ -9,13 +11,13 @@ autor3 = ""
 anio3 = 0
 opcion = 0
 while opcion!=4:
-    opcion = int(input("Ingrese una opción (1:Registrar libro | 2:Ver libros | 3:Buscar libro | 4:Salir): "))
+    opcion = int(input("\nIngrese una opción (1:Registrar libro | 2:Ver libros | 3:Buscar libro | 4:Salir): "))
     match opcion:
         case 1:
-            print("Registrar libro")
-            titulo = input("Ingrese el título del libro: ")
-            autor = input("Ingrese el autor del libro: ")
-            anio = int(input("Ingrese el año de publicación del libro: "))
+            print("\n *** Registrar libro ***")
+            titulo = input("\nIngrese el título del libro: ")
+            autor = input("\nIngrese el autor del libro: ")
+            anio = int(input("\nIngrese el año de publicación del libro: "))
             if titulo1 == "":
                 titulo1 = titulo
                 autor1 = autor
@@ -31,16 +33,18 @@ while opcion!=4:
             else:
                 print("No se pueden registrar más libros")
         case 2:
-            print("Ver libros")
+            print("\n *** Ver libros ***")
             if titulo1 != "":
                 print(f"Libro 1: {titulo1} - {autor1} - {anio1}")
             if titulo2 != "":
                 print(f"Libro 2: {titulo2} - {autor2} - {anio2}")
             if titulo3 != "":
                 print(f"Libro 3: {titulo3} - {autor3} - {anio3}")
+            if titulo1 == "" and titulo2 == "" and titulo3 == "":
+                print("No hay libros registrados")  
         case 3:
-            print("Buscar libro")
-            busqueda = input("Ingrese el título del libro a buscar: ")
+            print("\n *** Buscar libro ***")
+            busqueda = input("\nIngrese el título del libro a buscar: ")
             if busqueda == titulo1:
                 print(f"Libro encontrado: {titulo1} - {autor1} - {anio1}")
             elif busqueda == titulo2:
@@ -50,5 +54,5 @@ while opcion!=4:
             else:
                 print("Libro no encontrado")
         case 4:
-            print("Salir")
+            print("\n *** Salir ***")
     

@@ -1,13 +1,15 @@
+print("=== Bienvenido al sistema de registro de avistamientos ===")
+
 nina = ""
 gary = ""
 iris = ""
 luke = ""
 opcion = 0
 while opcion!=4:
-    opcion = int(input("Ingrese una opción (1:Registrar | 2:Ver | 3:Buscar | 4:Salir): "))
+    opcion = int(input("\nIngrese una opción (1:Registrar | 2:Ver | 3:Buscar | 4:Salir): "))
     match opcion:
         case 1:
-            print("Registrar")
+            print("\n *** Registrar avistamiento ***")
             testigo = input("Quién (n:nina | g:gary | i:iris | l:luke): ")
             descripcion = input("¿Qué fue lo que vio?: ")
             match testigo:
@@ -19,9 +21,8 @@ while opcion!=4:
                     iris = descripcion
                 case "l":
                     luke = descripcion
-            print("Avistamiento registrado")
         case 2:
-            print("Ver")
+            print("\n *** Avistamientos registrados ***")
             if nina!="":
                 print(f"Nina: {nina}")
             if gary!="":
@@ -33,7 +34,7 @@ while opcion!=4:
             if nina=="" and gary=="" and iris=="" and luke=="":
                 print("No hay registros")
         case 3:
-            print("Buscar")
+            print("\n *** Buscar avistamiento ***")
             if "luces" in nina:
                 print("Nina vio luces")
             if "luces" in gary:
@@ -45,4 +46,5 @@ while opcion!=4:
             if "luces" not in nina and "luces" not in gary and "luces" not in iris and "luces" not in luke:
                 print("Nadie ha visto luces en el cielo")
         case 4:
-            print("Salir")
+            print("\n *** Salir ***")
+

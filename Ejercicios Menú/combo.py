@@ -1,3 +1,5 @@
+print("=== Bienvenido al sistema de registro de comidas ===")
+
 completo = False
 papas_fritas = False
 bebida = False
@@ -6,11 +8,11 @@ empanadas = False
 nuggets = False
 opcion = 0
 while opcion!=4:
-    opcion = int(input("Ingrese una opcion (1:Registrar | 2:Ver | 3:Total | 4:Salir): "))
+    opcion = int(input("\nIngrese una opcion (1:Registrar | 2:Ver | 3:Total | 4:Salir): "))
     match opcion:
         case 1:
-            print("Registrar")
-            comida = input("¿Qué comida desea registrar? (c:completo | p:papas fritas | b:bebida | h:helado | e:empanadas | n:nuggets): ")
+            print("\n *** Registrar ***")
+            comida = input("\n¿Qué comida desea registrar? (c:completo | p:papas fritas | b:bebida | h:helado | e:empanadas | n:nuggets): ")
             match comida:
                 case "c":
                     completo = True
@@ -26,7 +28,7 @@ while opcion!=4:
                     nuggets = True
             print("Comida registrada")
         case 2:
-            print("Ver")
+            print("\n *** Ver comidas registradas ***")
             if completo:
                 print("Completo")
             if papas_fritas:
@@ -42,7 +44,7 @@ while opcion!=4:
             if not completo and not papas_fritas and not bebida and not helado and not empanadas and not nuggets:
                 print("No hay comidas registradas")
         case 3:
-            print("Total")
+            print("\n *** Total ***")
             total = 0
             if completo:
                 total += 5000
@@ -58,4 +60,4 @@ while opcion!=4:
                 total += 2500
             print(f"El total a pagar es: {total}")
         case 4:
-            print("Salir")
+            print("\n *** Salir ***")
