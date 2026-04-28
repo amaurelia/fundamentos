@@ -40,7 +40,7 @@ Usted debe crear un programa de compra de entradas de cine. Los tipos de entrada
 | Estreno         | $6.000  |
 | Normal          | $4.500  |
 
-El programa debe permitir comprar varias entradas de cada tipo. El descuento se aplica automáticamente según la cantidad **total** de entradas compradas:
+El programa debe permitir comprar varias entradas de un tipo específico ( Estreno | Normal ). El descuento se aplica automáticamente según la cantidad **total** de entradas compradas:
 
 | Cantidad de entradas | Descuento |
 |----------------------|-----------|
