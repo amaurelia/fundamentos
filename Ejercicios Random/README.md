@@ -92,3 +92,28 @@ Ejemplo de salida:
 13 15 17 18 19
 20 21 22 27 29
 ```
+
+---
+
+## Ejercicio 5 — Color (`color.py`)
+
+![Color](img/color.jpg)
+
+Los colores en pantalla se forman combinando tres componentes: **Rojo (R)**, **Verde (G)** y **Azul (B)**, cada uno con un valor entre 0 y 255. Usted debe crear un programa que seleccione un número aleatorio para cada componente y forme un color único, mostrándolo en pantalla con su valor RGB.
+
+---
+
+## Ejercicio 6 — Golpe crítico (`critico.py`)
+
+![Golpe](img/golpe.jpg)
+
+Un personaje de RPG lanza un ataque que puede tener tres resultados distintos según la probabilidad:
+
+| Resultado       | Probabilidad | Efecto       |
+|-----------------|--------------|--------------|
+| Fallo           | 30%          | Sin daño     |
+| Golpe crítico   | 10%          | Daño x2      |
+| Golpe normal    | 60%          | Daño x1      |
+
+Usted debe crear un programa que simule el lanzamiento del ataque y muestre el resultado obtenido.
+
