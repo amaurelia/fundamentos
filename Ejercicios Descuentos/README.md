@@ -75,4 +75,79 @@ El alumno debe seleccionar un curso e ingresar su nota. Según la nota obtenida,
 
 Al final se debe mostrar el **valor total a pagar con el descuento aplicado**.
 
+---
+
+## Ejercicio 4 — Impuestos (`impuestos.py`)
+
+![Impuestos](img/impuestos.jpg)
+
+Todos los años usted debe pagar impuestos por su propiedad. El programa debe solicitar:
+
+- Valor de la propiedad (en UF)
+- Metros cuadrados
+- ¿Tiene piscina?
+- ¿Tiene árboles frutales?
+
+El porcentaje a pagar se calcula sumando los siguientes tramos:
+
+| Condición | Porcentaje adicional |
+|---|---|
+| Propiedad vale **menos de 4.000 UF** | 2% |
+| Propiedad vale **más de 4.000 UF** | 3% |
+| Superficie **mayor a 100 m²** | +1% |
+| Tiene **piscina** | +0.5% |
+| Tiene **árboles frutales** | +0.5% |
+
+Al final se debe mostrar el **porcentaje total** a pagar y el **costo anual** de los impuestos.
+
+---
+
+## Ejercicio 5 — Anticuchos (`anticuchos.py`)
+
+![Anticuchos](img/anticuchos.jpg)
+
+¡Ha llegado el 18 y es momento de celebrar! El combo incluye 2 anticuchos y un terremoto, con un precio base de **$15.000**. Sin embargo, hay descuento según el rol del comprador:
+
+| Rol | Descuento |
+|---|---|
+| Estudiante de informática | 5% |
+| Profesor | 95% |
+| Otro | Sin descuento |
+
+Ingresa si eres **estudiante / profesor / otro** y calcula el precio a pagar.
+
+---
+
+## Ejercicio 6 — Centro Pokémon (`centro_pokemon.py`)
+
+![Centro Pokémon](img/centro_pokemon.jpg)
+
+Debido a problemas presupuestarios, los centros Pokémon ahora cobran **800 yenes** por cada atención. Sin embargo, hay descuento según el nivel del Pokémon:
+
+| Nivel del Pokémon | Descuento |
+|---|---|
+| Nivel 1 a 4 | Sin descuento |
+| Nivel 5 a 15 | 5% |
+| Nivel 16 a 30 | 7% |
+| Nivel 31 a 50 | 10% |
+| Sobre nivel 50 | 15% |
+
+Ingresa el nivel del Pokémon y calcula el costo de la atención.
+
+---
+
+## Ejercicio 7 — Fotografías (`fotografias.py`)
+
+![Fotografías](img/fotografias.jpg)
+
+Peter Parker es un fotógrafo malpagado. Su jefe le paga solo **$5.000 por cada foto de Spider-Man**, pero accede a aumentarle el pago si trae suficientes fotos esta semana:
+
+| Fotos entregadas | Aumento |
+|---|---|
+| Menos de 5 fotos | Sin aumento |
+| 5 a 10 fotos | +1% por foto |
+| Más de 10 fotos | +2% por foto |
+
+Ingresa el número de fotos tomadas esta semana y calcula el total que le deben pagar.
+
 
