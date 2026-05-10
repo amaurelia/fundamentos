@@ -4,11 +4,13 @@ import uuid
 import ast
 import json
 import re
+import time
 
 players = {}
 clients = {}
 lock = threading.Lock()
 broadcast_lock = threading.Lock()
+CHAT_DURACION_SEGUNDOS = 4.0
 
 # Geometria del mapa exterior (igual al cliente) para generar spawns validos.
 RADIO_JUGADOR = 20
@@ -91,6 +93,7 @@ def difundir_estado():
                 "estado": datos[2],
                 "nombre": datos[3],
                 "color": datos[4],
+                "chat": datos[5]["texto"] if isinstance(datos[5], dict) and datos[5].get("expira", 0) > time.time() else None,
             }
             for pid, datos in players.items()
         }
@@ -108,6 +111,7 @@ def difundir_estado():
                     "tu_pos": [jugador["x"], jugador["y"], jugador["estado"]],
                     "tu_nombre": jugador["nombre"],
                     "tu_color": jugador["color"],
+                    "tu_chat": jugador["chat"],
                     "jugadores": {oid: info for oid, info in snapshot_jugadores.items() if oid != pid},
                 }
                 conn.sendall((json.dumps(payload) + "\n").encode())
@@ -124,10 +128,10 @@ def handle_client(conn, addr):
     """Maneja a cada cliente conectado"""
     player_id = str(uuid.uuid4())[:8]
     
-    # Posicion inicial: (x, y, estado, nombre, color)
+    # Posicion inicial: (x, y, estado, nombre, color, chat)
     with lock:
         spawn_x, spawn_y = obtener_spawn_inicial()
-        players[player_id] = [spawn_x, spawn_y, "exterior", f"Jugador-{player_id}", "#1565c0"]
+        players[player_id] = [spawn_x, spawn_y, "exterior", f"Jugador-{player_id}", "#1565c0", None]
         clients[player_id] = conn
     
     try:
@@ -166,10 +170,18 @@ def handle_client(conn, addr):
                     nombre = str(payload.get("nombre", "")).strip() or f"Jugador-{player_id}"
                     with lock:
                         color_actual = players[player_id][4]
+                        chat_actual = players[player_id][5]
                     color = normalizar_color(payload.get("color"), color_actual)
+                    chat_nuevo = payload.get("chat")
+                    if isinstance(chat_nuevo, str):
+                        chat_nuevo = chat_nuevo.strip()
+                    if isinstance(chat_nuevo, str) and chat_nuevo:
+                        chat = {"texto": chat_nuevo[:120], "expira": time.time() + CHAT_DURACION_SEGUNDOS}
+                    else:
+                        chat = chat_actual
 
                     with lock:
-                        players[player_id] = [x, y, estado, nombre, color]
+                        players[player_id] = [x, y, estado, nombre, color, chat]
 
                     difundir_estado()
                 else:
@@ -186,7 +198,8 @@ def handle_client(conn, addr):
                     with lock:
                         nombre = players[player_id][3]
                         color = players[player_id][4]
-                        players[player_id] = [x, y, estado, nombre, color]
+                        chat = players[player_id][5]
+                        players[player_id] = [x, y, estado, nombre, color, chat]
 
                     difundir_estado()
     

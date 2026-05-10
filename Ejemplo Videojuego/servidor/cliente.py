@@ -99,6 +99,10 @@ class cfg:
     # IP del servidor del profesor. 127.0.0.1 solo funciona en la misma maquina.
     SERVIDOR_HOSTS = ["3.85.165.104", "172.31.82.40", "127.0.0.1"]
 
+    # --- Chat ---
+    CHAT_MAX_CARACTERES = 120
+    CHAT_DURACION_FRAMES = 240  # ~4s a 60 FPS
+
 
 class JuegoMultijugador:
     def __init__(self, root):
@@ -159,6 +163,11 @@ class JuegoMultijugador:
         self.msg_timer = 0
         self.hud = None
         self.msg = None
+        self.chat_input = None
+        self.chat_activo = False
+        self.chat_texto_actual = ""
+        self.chat_pendiente = None
+        self.chat_burbujas = {}
 
         # Otros jugadores
         self.otros_jugadores = {}
@@ -217,6 +226,9 @@ class JuegoMultijugador:
                             # Marca como sincronizado después de la primera recepción
                             self.nombre_color_sincronizado = True
                         self.otros_jugadores = info.get("jugadores", {})
+                        self._registrar_chat(self.id_jugador, info.get("tu_chat"))
+                        for oid, datos in self.otros_jugadores.items():
+                            self._registrar_chat(oid, datos.get("chat"))
                     except Exception:
                         pass  # Linea malformada, ignorar y continuar
             except Exception:
@@ -231,8 +243,10 @@ class JuegoMultijugador:
                 "estado": self.estado,
                 "nombre": self.nombre,
                 "color": self.color,
+                "chat": self.chat_pendiente,
             }) + "\n"
             self.socket.send(msg.encode())
+            self.chat_pendiente = None
         except:
             pass
 
@@ -367,6 +381,9 @@ class JuegoMultijugador:
                               fill="#ffcc80", outline="#e65100", width=1)
                 c.create_oval(ox-7, oy-10, ox-3, oy-6, fill="black")
                 c.create_oval(ox+3, oy-10, ox+7, oy-6, fill="black")
+                chat = self.chat_burbujas.get(jugador_id)
+                if chat:
+                    self._dibujar_chat_en_posicion(ox, oy, chat["texto"])
 
     # --- Personaje ---
 
@@ -387,14 +404,84 @@ class JuegoMultijugador:
                       fill=cfg.COLOR_CARA, outline=cfg.COLOR_BORDE_CARA, width=1, tags="personaje")
         c.create_oval(x-7, y-10, x-3, y-6, fill="black", tags="personaje")
         c.create_oval(x+3, y-10, x+7, y-6, fill="black", tags="personaje")
+        if self.id_jugador:
+            chat = self.chat_burbujas.get(self.id_jugador)
+            if chat:
+                self._dibujar_chat_en_posicion(x, y, chat["texto"])
 
     # --- Input ---
 
     def tecla_presionada(self, evento):
-        self.teclas.add(evento.keysym.lower())
+        tecla = evento.keysym.lower()
+
+        if self.chat_activo:
+            self._manejar_input_chat(evento)
+            return
+
+        if tecla in ("return", "kp_enter", "f12"):
+            self.chat_activo = True
+            self.chat_texto_actual = ""
+            return
+
+        self.teclas.add(tecla)
 
     def tecla_soltada(self, evento):
         self.teclas.discard(evento.keysym.lower())
+
+    def _manejar_input_chat(self, evento):
+        tecla = evento.keysym.lower()
+
+        if tecla in ("return", "kp_enter"):
+            texto = self.chat_texto_actual.strip()
+            if texto:
+                self.chat_pendiente = texto[:cfg.CHAT_MAX_CARACTERES]
+                if self.id_jugador:
+                    self.chat_burbujas[self.id_jugador] = {
+                        "texto": self.chat_pendiente,
+                        "timer": cfg.CHAT_DURACION_FRAMES,
+                    }
+            self.chat_texto_actual = ""
+            self.chat_activo = False
+            return
+
+        if tecla == "escape":
+            self.chat_texto_actual = ""
+            self.chat_activo = False
+            return
+
+        if tecla == "backspace":
+            self.chat_texto_actual = self.chat_texto_actual[:-1]
+            return
+
+        if evento.char and evento.char.isprintable() and len(self.chat_texto_actual) < cfg.CHAT_MAX_CARACTERES:
+            self.chat_texto_actual += evento.char
+
+    def _registrar_chat(self, jugador_id, texto):
+        if not jugador_id:
+            return
+        if isinstance(texto, str) and texto.strip():
+            self.chat_burbujas[jugador_id] = {
+                "texto": texto.strip()[:cfg.CHAT_MAX_CARACTERES],
+                "timer": cfg.CHAT_DURACION_FRAMES,
+            }
+
+    def _actualizar_timers_chat(self):
+        for jugador_id in list(self.chat_burbujas.keys()):
+            self.chat_burbujas[jugador_id]["timer"] -= 1
+            if self.chat_burbujas[jugador_id]["timer"] <= 0:
+                del self.chat_burbujas[jugador_id]
+
+    def _dibujar_chat_en_posicion(self, x, y, texto):
+        if not texto:
+            return
+        self.canvas.create_text(
+            x,
+            y - cfg.RADIO - 34,
+            text=texto,
+            fill="#fff8c9",
+            font=("Consolas", 10, "bold"),
+            tags="chat",
+        )
 
     # --- Colisiones ---
 
@@ -449,15 +536,17 @@ class JuegoMultijugador:
     # --- Game loop ---
 
     def _loop(self):
+        self._actualizar_timers_chat()
         dx, dy = 0, 0
-        if "up" in self.teclas:
-            dy -= cfg.VELOCIDAD
-        if "down" in self.teclas:
-            dy += cfg.VELOCIDAD
-        if "left" in self.teclas:
-            dx -= cfg.VELOCIDAD
-        if "right" in self.teclas:
-            dx += cfg.VELOCIDAD
+        if not self.chat_activo:
+            if "up" in self.teclas:
+                dy -= cfg.VELOCIDAD
+            if "down" in self.teclas:
+                dy += cfg.VELOCIDAD
+            if "left" in self.teclas:
+                dx -= cfg.VELOCIDAD
+            if "right" in self.teclas:
+                dx += cfg.VELOCIDAD
 
         self._mover(dx, dy)
         self._enviar_posicion()
@@ -510,6 +599,24 @@ class JuegoMultijugador:
             else:
                 self.canvas.itemconfig(self.msg, text="")
             self.canvas.tag_raise(self.msg)
+
+        if self.chat_input is None:
+            self.chat_input = self.canvas.create_text(
+                cfg.ANCHO // 2,
+                cfg.ALTO - 42,
+                text="",
+                fill="#ffe082",
+                font=("Consolas", 11, "bold"),
+            )
+
+        if self.chat_activo:
+            self.canvas.itemconfig(self.chat_input, text=f"Chat: {self.chat_texto_actual}_")
+        else:
+            self.canvas.itemconfig(
+                self.chat_input,
+                text="Presiona Enter o F12 para hablar",
+            )
+        self.canvas.tag_raise(self.chat_input)
 
         self.root.after(16, self._loop)
 
