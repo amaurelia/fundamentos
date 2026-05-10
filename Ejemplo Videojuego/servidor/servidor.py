@@ -93,6 +93,7 @@ def difundir_estado():
                 "estado": datos[2],
                 "nombre": datos[3],
                 "color": datos[4],
+                "clase": datos[6],
                 "chat": datos[5]["texto"] if isinstance(datos[5], dict) and datos[5].get("expira", 0) > time.time() else None,
             }
             for pid, datos in players.items()
@@ -128,10 +129,10 @@ def handle_client(conn, addr):
     """Maneja a cada cliente conectado"""
     player_id = str(uuid.uuid4())[:8]
     
-    # Posicion inicial: (x, y, estado, nombre, color, chat)
+    # Posicion inicial: (x, y, estado, nombre, color, chat, clase)
     with lock:
         spawn_x, spawn_y = obtener_spawn_inicial()
-        players[player_id] = [spawn_x, spawn_y, "exterior", f"Jugador-{player_id}", "#1565c0", None]
+        players[player_id] = [spawn_x, spawn_y, "exterior", f"Jugador-{player_id}", "#1565c0", None, "paladin"]
         clients[player_id] = conn
     
     try:
@@ -168,6 +169,9 @@ def handle_client(conn, addr):
                         continue
                     estado = payload.get("estado", "exterior")
                     nombre = str(payload.get("nombre", "")).strip() or f"Jugador-{player_id}"
+                    clase = str(payload.get("clase", "paladin")).strip().lower() or "paladin"
+                    if clase not in ("paladin", "hechicero", "sanador"):
+                        clase = "paladin"
                     with lock:
                         color_actual = players[player_id][4]
                         chat_actual = players[player_id][5]
@@ -181,7 +185,7 @@ def handle_client(conn, addr):
                         chat = chat_actual
 
                     with lock:
-                        players[player_id] = [x, y, estado, nombre, color, chat]
+                        players[player_id] = [x, y, estado, nombre, color, chat, clase]
 
                     difundir_estado()
                 else:
@@ -199,7 +203,8 @@ def handle_client(conn, addr):
                         nombre = players[player_id][3]
                         color = players[player_id][4]
                         chat = players[player_id][5]
-                        players[player_id] = [x, y, estado, nombre, color, chat]
+                        clase = players[player_id][6]
+                        players[player_id] = [x, y, estado, nombre, color, chat, clase]
 
                     difundir_estado()
     
