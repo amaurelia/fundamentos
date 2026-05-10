@@ -8,6 +8,8 @@ import math
 import re
 import time
 import random
+import os
+import sys
 
 
 class cfg:
@@ -130,6 +132,34 @@ class cfg:
 
 
 class JuegoMultijugador:
+    def _cargar_hosts_servidor(self):
+        """Carga hosts desde archivo externo, con fallback a los definidos en cfg."""
+        hosts = list(cfg.SERVIDOR_HOSTS)
+        try:
+            # En EXE usa carpeta del ejecutable; en .py usa carpeta del script.
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else os.path.dirname(os.path.abspath(__file__))
+            cfg_path = os.path.join(base_dir, "servidor_hosts.txt")
+            if os.path.exists(cfg_path):
+                nuevos = []
+                with open(cfg_path, "r", encoding="utf-8") as f:
+                    for linea in f:
+                        host = linea.strip()
+                        if host and not host.startswith("#"):
+                            nuevos.append(host)
+                if nuevos:
+                    hosts = nuevos
+        except Exception:
+            pass
+
+        # Eliminar duplicados conservando orden.
+        vistos = set()
+        unicos = []
+        for h in hosts:
+            if h not in vistos:
+                vistos.add(h)
+                unicos.append(h)
+        return unicos
+
     def __init__(self, root):
         self.root = root
         self.root.title("Aventura Multijugador")
@@ -158,7 +188,8 @@ class JuegoMultijugador:
         # Conectar al servidor
         self.socket = None
         conectado = False
-        for host in cfg.SERVIDOR_HOSTS:
+        self.hosts_servidor = self._cargar_hosts_servidor()
+        for host in self.hosts_servidor:
             try:
                 # Crear un socket por intento evita errores de reconexion en Windows.
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -177,7 +208,7 @@ class JuegoMultijugador:
         if not conectado:
             messagebox.showerror(
                 "Error",
-                "No se pudo conectar al servidor en: " + ", ".join(cfg.SERVIDOR_HOSTS),
+                "No se pudo conectar al servidor en: " + ", ".join(self.hosts_servidor),
             )
             root.destroy()
             return
