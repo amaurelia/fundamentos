@@ -2,6 +2,6 @@
 # Puedes poner dominio (recomendado) o IP.
 # Si este archivo existe, reemplaza la lista interna del cliente.
 
-juego.tu-dominio.com
-3.85.165.104
+44.206.251.32
+172.31.82.40
 127.0.0.1

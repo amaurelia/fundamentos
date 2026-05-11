@@ -229,6 +229,7 @@ class JuegoMultijugador:
         self.chat_activo = False
         self.chat_texto_actual = ""
         self.chat_pendiente = None
+        self.accion_pendiente = None
         self.chat_burbujas = {}
 
         # Otros jugadores
@@ -306,6 +307,21 @@ class JuegoMultijugador:
                             # Marca como sincronizado después de la primera recepción
                             self.nombre_color_sincronizado = True
                         self.otros_jugadores = info.get("jugadores", {})
+                        raton_srv = info.get("raton")
+                        if isinstance(raton_srv, dict):
+                            self.rata = raton_srv
+                        hp_srv = info.get("tu_hp")
+                        if isinstance(hp_srv, int):
+                            self.hp = max(0, hp_srv)
+                        hp_max_srv = info.get("tu_hp_max")
+                        if isinstance(hp_max_srv, int) and hp_max_srv > 0:
+                            self.hp_max = hp_max_srv
+                        muerto_srv = info.get("tu_muerto")
+                        if isinstance(muerto_srv, bool):
+                            self.muerto = muerto_srv
+                        timer_srv = info.get("tu_muerte_timer")
+                        if isinstance(timer_srv, int):
+                            self.muerte_timer = max(0, timer_srv)
                         self._registrar_chat(self.id_jugador, info.get("tu_chat"))
                         for oid, datos in self.otros_jugadores.items():
                             self._registrar_chat(oid, datos.get("chat"))
@@ -325,9 +341,11 @@ class JuegoMultijugador:
                 "color": self.color,
                 "clase": self.clase,
                 "chat": self.chat_pendiente,
+                "accion": self.accion_pendiente,
             }) + "\n"
             self.socket.send(msg.encode())
             self.chat_pendiente = None
+            self.accion_pendiente = None
         except:
             pass
 
@@ -962,11 +980,7 @@ class JuegoMultijugador:
     def _ataque_paladin(self):
         """Paladin hace un ataque con espada."""
         self.ataque_timer = 30  # 0.5 segundos
-        # Dañar rata si está en el sótano y cerca (alcance de espada)
-        if self.estado == "subterraneo" and self.rata["hp"] > 0:
-            dist = math.hypot(self.px - self.rata["x"], self.py - self.rata["y"])
-            if dist < 120:
-                self.rata["hp"] = max(0, self.rata["hp"] - 20)
+        self.accion_pendiente = "ataque_paladin"
         # Agregar partículas de ataque
         for i in range(8):
             angulo = (i / 8) * 2 * math.pi
@@ -988,7 +1002,7 @@ class JuegoMultijugador:
 
     def _sanar_cercanos(self):
         """Sanador sana HP propio y muestra aura de sanación."""
-        self.hp = min(self.hp_max, self.hp + 25)
+        self.accion_pendiente = "sanacion"
         # Agregar partículas de sanación en círculo
         for i in range(12):
             angulo = (i / 12) * 2 * math.pi
@@ -1251,6 +1265,29 @@ class JuegoMultijugador:
                           fill="#440066", outline="#cc44ff", width=2)
             c.create_oval(bx-5, by-5, bx+5, by+5, fill="#ff88ff", outline="")
 
+        # Indicador del objetivo actual (sincronizado por servidor)
+        objetivo_id = r.get("objetivo_id")
+        objetivo_nombre = r.get("objetivo_nombre")
+        tx, ty = None, None
+        if objetivo_id and objetivo_id == self.id_jugador and self.estado == "subterraneo":
+            tx, ty = self.px, self.py
+        elif objetivo_id and objetivo_id in self.otros_jugadores:
+            datos_obj = self.otros_jugadores.get(objetivo_id, {})
+            if datos_obj.get("estado") == "subterraneo":
+                tx = datos_obj.get("x")
+                ty = datos_obj.get("y")
+
+        if tx is not None and ty is not None:
+            c.create_line(rx, ry, int(tx), int(ty), fill="#ff6666", width=2, dash=(6, 4))
+            if objetivo_nombre:
+                c.create_text(
+                    rx,
+                    ry - 74,
+                    text=f"Objetivo: {objetivo_nombre}",
+                    fill="#ff9e9e",
+                    font=("Consolas", 8, "bold"),
+                )
+
         # --- Cuerpo de la rata ---
         c.create_oval(rx-20, ry+10, rx+20, ry+18, fill="#111111", outline="")
         c.create_oval(rx-18, ry-10, rx+18, ry+14, fill=color_cuerpo, outline="#444444", width=2)
@@ -1423,26 +1460,15 @@ class JuegoMultijugador:
 
         # --- Manejar muerte del jugador ---
         if self.muerto:
-            self.muerte_timer -= 1
-            if self.muerte_timer <= 0:
-                # Respawn en el exterior
-                self.estado = "exterior"
-                self.px = 400
-                self.py = 350
-                self.hp = self.hp_max
-                self.muerto = False
-                self.rata = self._rata_inicial()
+            # Redibujar el mapa actual con overlay de muerte (autoridad del servidor)
+            if self.estado == "subterraneo":
+                self._dibujar_subterraneo()
+            elif self.estado == "interior":
+                self._dibujar_interior()
+            elif self.estado == "exterior":
                 self._dibujar_exterior()
-            else:
-                # Redibujar el mapa actual con overlay de muerte
-                if self.estado == "subterraneo":
-                    self._dibujar_subterraneo()
-                elif self.estado == "interior":
-                    self._dibujar_interior()
-                elif self.estado == "exterior":
-                    self._dibujar_exterior()
-                self._dibujar_muerte_overlay()
-                self._dibujar_hp_bar()
+            self._dibujar_muerte_overlay()
+            self._dibujar_hp_bar()
             self.root.after(16, self._loop)
             return
 
@@ -1560,7 +1586,6 @@ class JuegoMultijugador:
                 self.estado = "subterraneo"
                 self.px = tx2 + cfg.TRAMPILLA_INT_W // 2
                 self.py = 200
-                self.rata = self._rata_inicial()  # Reiniciar la rata al entrar
                 self._dibujar_subterraneo()
                 self.root.after(16, self._loop)
                 return
@@ -1600,14 +1625,13 @@ class JuegoMultijugador:
             self.canvas.tag_raise(self.msg)
 
         elif self.estado == "subterraneo":
-            # Actualizar IA de la rata
-            self._actualizar_rata()
             # Subir por escalera (centro superior) — zona de salida más arriba
             lx2 = cfg.TRAMPILLA_INT_X + cfg.TRAMPILLA_INT_W // 2
             if self.py <= 55 and abs(self.px - lx2) < 35:
                 self.estado = "interior"
-                self.px = cfg.TRAMPILLA_INT_X + cfg.TRAMPILLA_INT_W // 2
-                self.py = cfg.TRAMPILLA_INT_Y + cfg.TRAMPILLA_INT_H + cfg.RADIO + 5
+                # Aparecer claramente lejos de la trampilla para evitar reingreso accidental.
+                self.px = 300
+                self.py = 520
                 self._dibujar_interior()
                 self.root.after(16, self._loop)
                 return
@@ -1697,11 +1721,7 @@ class JuegoMultijugador:
 
     def _lanzar_hechizo_fuego(self):
         """Lanza el hechizo de fuego del hechicero."""
-        # Dañar rata si está cerca (el fuego tiene mayor alcance)
-        if self.estado == "subterraneo" and self.rata["hp"] > 0:
-            dist = math.hypot(self.px - self.rata["x"], self.py - self.rata["y"])
-            if dist < 180:
-                self.rata["hp"] = max(0, self.rata["hp"] - 30)
+        self.accion_pendiente = "hechizo_fuego"
         # Crear partículas de fuego en la dirección frontal
         for i in range(15):
             angulo = (i / 15) * 2 * math.pi + (math.pi / 8)
