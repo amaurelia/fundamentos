@@ -125,8 +125,10 @@ def difundir_estado():
                 "estado": datos[2],
                 "nombre": datos[3],
                 "color": datos[4],
-                "clase": datos[6],
                 "chat": datos[5]["texto"] if isinstance(datos[5], dict) and datos[5].get("expira", 0) > time.time() else None,
+                "clase": datos[6],
+                "hp": datos[7],
+                "hp_max": datos[8],
             }
             for pid, datos in players.items()
         }
@@ -170,7 +172,7 @@ def difundir_estado():
 
 
 def aplicar_habilidad(player_id, accion):
-    if accion not in ("ataque_paladin", "hechizo_fuego", "sanacion"):
+    if accion not in ("ataque_paladin", "ataque_paladin_izq", "ataque_paladin_der", "hechizo_fuego", "sanacion", "danio_pincho"):
         return
 
     datos = players.get(player_id)
@@ -184,6 +186,10 @@ def aplicar_habilidad(player_id, accion):
         datos[7] = min(datos[8], datos[7] + 25)
         return
 
+    if accion == "danio_pincho":
+        datos[7] = max(0, datos[7] - 10)
+        return
+
     if datos[2] != "subterraneo" or raton["hp"] <= 0:
         return
 
@@ -191,8 +197,10 @@ def aplicar_habilidad(player_id, accion):
     dist = math.hypot(px - raton["x"], py - raton["y"])
     if accion == "ataque_paladin" and dist < 120:
         raton["hp"] = max(0, raton["hp"] - 20)
-    elif accion == "hechizo_fuego" and dist < 180:
-        raton["hp"] = max(0, raton["hp"] - 30)
+    elif accion in ("ataque_paladin_izq", "ataque_paladin_der") and dist < 120:
+        raton["hp"] = max(0, raton["hp"] - 25)
+    elif accion == "hechizo_fuego" and dist < 1800:
+        raton["hp"] = max(0, raton["hp"] - 360)
 
 
 def _daniar_jugador(pid, danio):
@@ -202,7 +210,7 @@ def _daniar_jugador(pid, danio):
     datos[7] = max(0, datos[7] - danio)
     if datos[7] <= 0:
         datos[9] = True
-        datos[10] = 7 * 60
+        datos[10] = 10 * 60 if datos[2] == "practica" else 7 * 60
 
 
 def _actualizar_respawn_jugadores():
@@ -213,9 +221,13 @@ def _actualizar_respawn_jugadores():
         if datos[10] <= 0:
             datos[9] = False
             datos[7] = datos[8]
-            datos[0] = 400
-            datos[1] = 350
-            datos[2] = "exterior"
+            if datos[2] == "practica":
+                datos[0] = 400
+                datos[1] = 540
+            else:
+                datos[0] = 400
+                datos[1] = 350
+                datos[2] = "exterior"
 
 
 def _efectos_cercanos_para_jugador(player_id, snapshot_jugadores, snapshot_efectos):
@@ -246,7 +258,7 @@ def _efectos_cercanos_para_jugador(player_id, snapshot_jugadores, snapshot_efect
 
 
 def registrar_evento_efecto(player_id, accion):
-    if accion not in ("ataque_paladin", "hechizo_fuego", "sanacion"):
+    if accion not in ("ataque_paladin", "ataque_paladin_izq", "ataque_paladin_der", "hechizo_fuego", "sanacion", "danio_pincho"):
         return
     datos = players.get(player_id)
     if not datos:

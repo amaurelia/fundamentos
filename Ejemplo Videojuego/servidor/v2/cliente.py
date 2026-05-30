@@ -1294,7 +1294,10 @@ class JuegoMultijugador:
         tecla = evento.keysym.lower()
 
         if tecla == "f1":
-            self._usar_habilidad()
+            if self.clase == "paladin":
+                self._ataque_paladin()
+            else:
+                self._usar_habilidad()
             return
 
         if tecla == "f2":
@@ -2217,7 +2220,7 @@ class JuegoMultijugador:
         else:
             habilidad_info = ""
             if self.clase == "paladin":
-                habilidad_info = " | F1/F2: Ataque"
+                habilidad_info = " | F1: Espada izquierda | F2: Espada derecha"
             elif self.clase == "hechicero":
                 habilidad_info = " | F1: Castear Fuego (2 seg)"
             elif self.clase == "sanador":

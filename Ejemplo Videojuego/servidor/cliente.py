@@ -241,9 +241,12 @@ class JuegoMultijugador:
         self.habilidad_activa = False
         self.casteo_timer = 0
         self.casteo_duracion = 0
+        self.casteo_accion = None
         self.ataque_timer = 0
         self.particulas = []  # Lista de partículas para efectos visuales
         self.efectos_recibidos = {}  # id_evento -> frames restantes (evita duplicados)
+        self.animaciones_espada = []
+        self.animaciones_efecto = []
         # Sistema de HP y muerte
         self.hp = 100
         self.hp_max = 100
@@ -251,6 +254,10 @@ class JuegoMultijugador:
         self.muerte_timer = 0
         # Rata monstruo del sótano
         self.rata = self._rata_inicial()
+        # Sala de práctica
+        self.cristales = self._cristales_iniciales()
+        self.pinchos = self._pinchos_iniciales()
+        self.pincho_danio_timer = 0
         self.peces = [         # Posiciones base de los peces en mapa de agua
             (150, 280), (310, 420), (490, 150), (650, 380),
             (100, 460), (420, 310), (580, 480),
@@ -296,17 +303,7 @@ class JuegoMultijugador:
                         if not self.spawn_inicial_recibido and "tu_pos" in info:
                             self.px, self.py, self.estado = info["tu_pos"]
                             self.spawn_inicial_recibido = True
-                        # Primera recepción: no actualices nombre/color (son los que acabas de enviar)
-                        # Posteriores: sí actualiza para recibir cambios del servidor
-                        if self.nombre_color_sincronizado:
-                            nombre_servidor = info.get("tu_nombre")
-                            if isinstance(nombre_servidor, str) and nombre_servidor.strip():
-                                self.nombre = nombre_servidor.strip()
-                            color_servidor = info.get("tu_color")
-                            self.color = self._normalizar_color(color_servidor, self.color)
-                        else:
-                            # Marca como sincronizado después de la primera recepción
-                            self.nombre_color_sincronizado = True
+                        # El nombre y color los elige el cliente; no los sobreescribimos con datos del servidor.
                         self.otros_jugadores = info.get("jugadores", {})
                         raton_srv = info.get("raton")
                         if isinstance(raton_srv, dict):
@@ -843,6 +840,8 @@ class JuegoMultijugador:
                               fill="#ffcc80", outline="#e65100", width=1)
                 c.create_oval(ox-7, oy-10, ox-3, oy-6, fill="black")
                 c.create_oval(ox+3, oy-10, ox+7, oy-6, fill="black")
+
+                self._dibujar_animaciones_jugador(c, jugador_id)
                 
                 # Dibujar atributo visual según la clase
                 if clase == "paladin":
@@ -861,6 +860,11 @@ class JuegoMultijugador:
                     c.create_line(ox+r+11, oy-r-8, ox+r+11, oy-r+8, fill="#654321", width=1)
                     c.create_text(ox+r+8, oy-r-2, text="+", fill="#ff0000", font=("Consolas", 12, "bold"))
                 
+                if self.clase == "sanador":
+                    hp_oth = datos.get("hp", 100)
+                    hp_max_oth = datos.get("hp_max", 100)
+                    self._dibujar_barra_hp_personaje(c, ox, oy, hp_oth, hp_max_oth, nombre, color)
+
                 chat = self.chat_burbujas.get(jugador_id)
                 if chat:
                     self._dibujar_chat_en_posicion(ox, oy, chat["texto"])
@@ -884,6 +888,10 @@ class JuegoMultijugador:
                       fill=cfg.COLOR_CARA, outline=cfg.COLOR_BORDE_CARA, width=1, tags="personaje")
         c.create_oval(x-7, y-10, x-3, y-6, fill="black", tags="personaje")
         c.create_oval(x+3, y-10, x+7, y-6, fill="black", tags="personaje")
+
+        self._dibujar_animaciones_jugador(c, self.id_jugador)
+        if self.clase == "sanador":
+            self._dibujar_barra_hp_personaje(c, x, y, self.hp, self.hp_max, nombre_mostrar, self.color)
         
         # Dibujar atributo visual según la clase
         if self.clase == "paladin":
@@ -902,18 +910,22 @@ class JuegoMultijugador:
             c.create_line(x+r+11, y-r-8, x+r+11, y-r+8, fill="#654321", width=1, tags="personaje")
             c.create_text(x+r+8, y-r-2, text="+", fill="#ff0000", font=("Consolas", 12, "bold"), tags="personaje")
         
-        # Mostrar efecto de casteo si está activo (para hechicero)
-        if self.clase == "hechicero" and self.casteo_timer > 0:
+        # Mostrar efecto de casteo si está activo
+        if self.casteo_timer > 0:
             progress = 1 - (self.casteo_timer / self.casteo_duracion)
-            barra_ancho = 30
+            barra_ancho = 40
+            if self.casteo_accion == "sanacion":
+                color_barra = "#ff4d6d"
+                texto_casteo = "Cargando corazones"
+            else:
+                color_barra = "#ff8c00"
+                texto_casteo = "Cargando fuego"
             c.create_rectangle(x-barra_ancho//2, y+r+15, x+barra_ancho//2, y+r+20, 
                              fill="#333333", outline="#ffffff", width=1, tags="personaje")
             c.create_rectangle(x-barra_ancho//2, y+r+15, x-barra_ancho//2 + barra_ancho*progress, y+r+20,
-                             fill="#ff8c00", outline="", tags="personaje")
-            c.create_text(x, y+r+28, text=f"Casteando... {int(self.casteo_timer/60):.1f}s", 
-                         fill="#ff8c00", font=("Consolas", 9), tags="personaje")
-        
-        if self.id_jugador:
+                             fill=color_barra, outline="", tags="personaje")
+            c.create_text(x, y+r+28, text=f"{texto_casteo}... {self.casteo_timer/60:.1f}s", 
+                         fill=color_barra, font=("Consolas", 9), tags="personaje")
             chat = self.chat_burbujas.get(self.id_jugador)
             if chat:
                 self._dibujar_chat_en_posicion(x, y, chat["texto"])
@@ -924,7 +936,15 @@ class JuegoMultijugador:
         tecla = evento.keysym.lower()
 
         if tecla == "f1":
-            self._usar_habilidad()
+            if self.clase == "paladin":
+                self._ataque_paladin_izq()
+            else:
+                self._usar_habilidad()
+            return
+
+        if tecla == "f2":
+            if self.clase == "paladin":
+                self._ataque_paladin_der()
             return
 
         if self.chat_activo:
@@ -972,28 +992,49 @@ class JuegoMultijugador:
     def _usar_habilidad(self):
         """Ejecuta la habilidad especial según la clase."""
         if self.clase == "paladin":
-            self._ataque_paladin()
+            self._ataque_paladin_izq()
         elif self.clase == "hechicero":
-            if self.casteo_timer == 0:  # Solo puede castear si no está casteando
+            if self.casteo_timer == 0:
                 self._iniciar_casteo_hechizo()
         elif self.clase == "sanador":
-            self._sanar_cercanos()
+            if self.casteo_timer == 0:
+                self._iniciar_casteo_sanacion()
 
     def _ataque_paladin(self):
-        """Paladin hace un ataque con espada."""
-        self.ataque_timer = 30  # 0.5 segundos
-        self.accion_pendiente = "ataque_paladin"
-        self._crear_particulas_accion(self.px, self.py, "ataque_paladin")
+        """Paladin hace un ataque con espada hacia la izquierda."""
+        self._ataque_paladin_izq()
+
+    def _ataque_paladin_izq(self):
+        """Paladin hace un ataque con espada hacia la izquierda."""
+        self.ataque_timer = 30
+        self.accion_pendiente = "ataque_paladin_izq"
+        self._agregar_animacion_espada(self.px, self.py, "izq", self.id_jugador)
+        self._daniar_cristales_cercanos(40, 80)
+
+    def _ataque_paladin_der(self):
+        """Paladin hace un ataque con espada hacia la derecha."""
+        self.ataque_timer = 30
+        self.accion_pendiente = "ataque_paladin_der"
+        self._agregar_animacion_espada(self.px, self.py, "der", self.id_jugador)
+        self._daniar_cristales_cercanos(40, 80)
 
     def _iniciar_casteo_hechizo(self):
         """Inicia el casteo del hechizo de fuego del hechicero."""
-        self.casteo_timer = 240  # 4 segundos a 60 FPS
-        self.casteo_duracion = 240
+        self.casteo_timer = 90  # 1.5 segundos
+        self.casteo_duracion = 90
+        self.casteo_accion = "hechizo_fuego"
+
+    def _iniciar_casteo_sanacion(self):
+        """Inicia el casteo de sanación del sanador."""
+        self.casteo_timer = 60  # 1 segundo
+        self.casteo_duracion = 60
+        self.casteo_accion = "sanacion"
 
     def _sanar_cercanos(self):
-        """Sanador sana HP propio y muestra aura de sanación."""
+        """Sanador sana HP propio y muestra corazones."""
         self.accion_pendiente = "sanacion"
-        self._crear_particulas_accion(self.px, self.py, "sanacion")
+        self._agregar_animacion_corazon(self.px, self.py, self.id_jugador)
+        self._daniar_cristales_cercanos(30, 100)
 
     def _rata_inicial(self):
         """Devuelve el estado inicial de la rata monstruo."""
@@ -1012,10 +1053,159 @@ class JuegoMultijugador:
             "veneno_charcos": [],       # lista de {x,y,vida}
         }
 
-    def _actualizar_rata(self):
-        """IA del ratón monstruo: patrulla, persigue y ataca al jugador."""
-        if self.rata["hp"] <= 0 or self.muerto:
+    def _rata_inicial(self):
+        """Devuelve el estado inicial de la rata monstruo."""
+        return {
+            "x": 400.0, "y": 300.0,
+            "hp": 4500, "hp_max": 4500,
+            "vx": 1.5, "vy": 0.8,
+            "estado": "patrulla",
+            "ataque_timer": 0,
+            "patrol_timer": 90,
+            "magic_timer": random.randint(200, 380),
+            "magic_casteo": 0,
+            "magic_hechizo": 0,        # 1=proyectil  2=velocidad  3=veneno
+            "magic_proyectiles": [],
+            "vel_boost_timer": 0,      # frames restantes de velocidad doble
+            "veneno_charcos": [],       # lista de {x,y,vida}
+        }
+
+    # --- Sala de práctica ---
+
+    def _cristales_iniciales(self):
+        return [
+            {"x": 150, "y": 150, "hp": 1000, "hp_max": 1000, "muerto": False, "muerte_timer": 0, "muerte_total": 5*60, "fase": random.uniform(0, 2*math.pi)},
+            {"x": 650, "y": 150, "hp": 1000, "hp_max": 1000, "muerto": False, "muerte_timer": 0, "muerte_total": 5*60, "fase": random.uniform(0, 2*math.pi)},
+            {"x": 400, "y": 300, "hp": 1000, "hp_max": 1000, "muerto": False, "muerte_timer": 0, "muerte_total": 5*60, "fase": random.uniform(0, 2*math.pi)},
+            {"x": 150, "y": 450, "hp": 1000, "hp_max": 1000, "muerto": False, "muerte_timer": 0, "muerte_total": 5*60, "fase": random.uniform(0, 2*math.pi)},
+            {"x": 650, "y": 450, "hp": 1000, "hp_max": 1000, "muerto": False, "muerte_timer": 0, "muerte_total": 5*60, "fase": random.uniform(0, 2*math.pi)},
+        ]
+
+    def _pinchos_iniciales(self):
+        pinchos = []
+        for px in range(100, cfg.ANCHO - 100, 120):
+            for py in range(100, cfg.ALTO - 100, 100):
+                pinchos.append({"x": px, "y": py})
+        return pinchos
+
+    def _dibujar_practica(self):
+        c = self.canvas
+        c.delete("all")
+        t = time.time()
+        # Piso de piedra
+        for x in range(0, cfg.ANCHO, 50):
+            for y in range(0, cfg.ALTO, 50):
+                col = "#3a3a3a" if ((x // 50) + (y // 50)) % 2 == 0 else "#4a4a4a"
+                c.create_rectangle(x, y, x+50, y+50, fill=col, outline="#2a2a2a")
+        # Paredes
+        g = 30
+        c.create_rectangle(0, 0, cfg.ANCHO, g, fill="#6a5a4a", outline="")
+        c.create_rectangle(0, cfg.ALTO-g, cfg.ANCHO, cfg.ALTO, fill="#6a5a4a", outline="")
+        c.create_rectangle(0, 0, g, cfg.ALTO, fill="#6a5a4a", outline="")
+        c.create_rectangle(cfg.ANCHO-g, 0, cfg.ANCHO, cfg.ALTO, fill="#6a5a4a", outline="")
+        # Indicadores de salida
+        c.create_rectangle(cfg.ANCHO//2-80, 0, cfg.ANCHO//2+80, 25, fill="#228B22", outline="#00FF00", width=2)
+        c.create_text(cfg.ANCHO//2, 13, text="^ Salida al Exterior ^", fill="#00FF00", font=("Consolas", 10, "bold"))
+        c.create_rectangle(cfg.ANCHO//2-80, cfg.ALTO-25, cfg.ANCHO//2+80, cfg.ALTO, fill="#228B22", outline="#00FF00", width=2)
+        c.create_text(cfg.ANCHO//2, cfg.ALTO-13, text="v Salida al Exterior v", fill="#00FF00", font=("Consolas", 10, "bold"))
+        # Pinchos
+        for pincho in self.pinchos:
+            self._dibujar_pincho(c, pincho["x"], pincho["y"], t)
+        # Cristales
+        self._dibujar_cristales(c, t)
+        # Jugadores
+        self._dibujar_otros_jugadores()
+        self._dibujar_personaje()
+        self.hud = c.create_text(cfg.ANCHO//2, cfg.ALTO-18,
+                                 text="Sala de Práctica | Evita los pinchos | Ataca los cristales",
+                                 fill="#aaaaaa", font=("Consolas", 12))
+        self.msg = c.create_text(cfg.ANCHO//2, 50, text="", fill="yellow", font=("Consolas", 14, "bold"))
+        self.jugadores_online = c.create_text(10, 10, text="Jugadores: 1/20", fill="lime", font=("Consolas", 10))
+
+    def _dibujar_pincho(self, c, x, y, t):
+        pulso = int(2 * math.sin(t * 3 + x * 0.03))
+        base_top = y + 4
+        base_bottom = y + 16
+        c.create_rectangle(x-14, base_top, x+14, base_bottom, fill="#5a5a5a", outline="#303030", width=2)
+        for offset in (-10, -3, 4, 11):
+            alto = 16 + pulso if offset in (-3, 4) else 13 + pulso
+            c.create_polygon(x+offset, base_top, x+offset+5, base_top, x+offset+2.5, base_top-alto,
+                             fill="#ff7a7a", outline="#bb2222", width=1)
+
+    def _dibujar_cristales(self, c, t):
+        for cristal in self.cristales:
+            x = int(cristal["x"])
+            y = int(cristal["y"] + 6 * math.sin(t * 2.4 + cristal.get("fase", 0)))
+            if cristal["muerto"]:
+                total = max(1, cristal.get("muerte_total", 5 * 60))
+                restante = max(0, cristal.get("muerte_timer", 0))
+                progreso = 1 - (restante / total)
+                esc = 1.0 - 0.25 * progreso
+                trozos = [
+                    (-15, -5, 6), (-7, 8, 5), (10, -4, 7),
+                    (16, 9, 5), (-2, -12, 4), (4, 14, 6),
+                ]
+                for dx, dy, tam in trozos:
+                    tx = x + int(dx * esc)
+                    ty = y + int(dy * esc)
+                    r = max(2, int(tam * esc))
+                    c.create_polygon(
+                        tx, ty - r,
+                        tx + r, ty,
+                        tx, ty + r,
+                        tx - r, ty,
+                        fill="#36d8ff",
+                        outline="#0ba6d1",
+                        width=1,
+                    )
+                radio_nucleo = 5 + int(4 * progreso)
+                c.create_oval(
+                    x - radio_nucleo,
+                    y - radio_nucleo,
+                    x + radio_nucleo,
+                    y + radio_nucleo,
+                    fill="#72f4ff",
+                    outline="",
+                )
+                continue
+            c.create_polygon(x, y-26, x+20, y-8, x+20, y+18, x, y+30, x-20, y+18, x-20, y-8,
+                             fill="#00CCFF", outline="#0099FF", width=2)
+            brillo = int(3 * math.sin(t * 2))
+            c.create_oval(x-6+brillo, y-19, x+6+brillo, y-7, fill="#88FFFF", outline="")
+            bar_w = 36
+            hp_pct = cristal["hp"] / cristal["hp_max"]
+            c.create_rectangle(x-bar_w//2, y-35, x+bar_w//2, y-30, fill="#330000", outline="#888888")
+            c.create_rectangle(x-bar_w//2, y-35, x-bar_w//2+int(bar_w*hp_pct), y-30, fill="#00FF00", outline="")
+
+    def _actualizar_practica(self):
+        if self.pincho_danio_timer > 0:
+            self.pincho_danio_timer -= 1
+        for pincho in self.pinchos:
+            if math.hypot(self.px - pincho["x"], self.py - pincho["y"]) < cfg.RADIO + 20:
+                if self.pincho_danio_timer <= 0:
+                    self.accion_pendiente = "danio_pincho"
+                    self.pincho_danio_timer = 30
+        for cristal in self.cristales:
+            if cristal["muerto"]:
+                cristal["muerte_timer"] -= 1
+                if cristal["muerte_timer"] <= 0:
+                    cristal["muerto"] = False
+                    cristal["hp"] = cristal["hp_max"]
+
+    def _daniar_cristales_cercanos(self, danio, alcance=80):
+        if self.estado != "practica":
             return
+        for cristal in self.cristales:
+            if not cristal["muerto"]:
+                dist = math.hypot(self.px - cristal["x"], self.py - cristal["y"])
+                if dist < alcance:
+                    cristal["hp"] = max(0, cristal["hp"] - danio)
+                    if cristal["hp"] <= 0:
+                        cristal["muerto"] = True
+                        cristal["muerte_total"] = 5 * 60
+                        cristal["muerte_timer"] = cristal["muerte_total"]
+
+
 
         r = self.rata
         dx = self.px - r["x"]
@@ -1159,6 +1349,21 @@ class JuegoMultijugador:
             if p["vida"] > 0:
                 nuevas_particulas.append(p)
         self.particulas = nuevas_particulas
+
+        nuevas_espadas = []
+        for espada in self.animaciones_espada:
+            espada["timer"] -= 1
+            if espada["timer"] > 0:
+                nuevas_espadas.append(espada)
+        self.animaciones_espada = nuevas_espadas
+
+        nuevas_efectos = []
+        for efecto in self.animaciones_efecto:
+            efecto["timer"] -= 1
+            if efecto["timer"] > 0:
+                nuevas_efectos.append(efecto)
+        self.animaciones_efecto = nuevas_efectos
+
         for efecto_id in list(self.efectos_recibidos.keys()):
             self.efectos_recibidos[efecto_id] -= 1
             if self.efectos_recibidos[efecto_id] <= 0:
@@ -1170,55 +1375,171 @@ class JuegoMultijugador:
         for efecto in efectos:
             if not isinstance(efecto, dict):
                 continue
-            efecto_id = str(efecto.get("id", "")).strip()
-            if not efecto_id or efecto_id in self.efectos_recibidos:
-                continue
-            if efecto.get("estado") != self.estado:
+            efecto_id = efecto.get("id")
+            if efecto_id in self.efectos_recibidos:
                 continue
             accion = str(efecto.get("accion", "")).strip().lower()
-            if accion not in ("ataque_paladin", "hechizo_fuego", "sanacion"):
+            if accion not in ("ataque_paladin", "ataque_paladin_izq", "ataque_paladin_der", "hechizo_fuego", "sanacion"):
                 continue
             ex = efecto.get("x")
             ey = efecto.get("y")
+            player_id = efecto.get("player_id")
             if not isinstance(ex, (int, float)) or not isinstance(ey, (int, float)):
                 continue
             self.efectos_recibidos[efecto_id] = 45
-            self._crear_particulas_accion(float(ex), float(ey), accion)
+            if accion in ("ataque_paladin_izq", "ataque_paladin_der"):
+                tipo = "izq" if accion == "ataque_paladin_izq" else "der"
+                self._agregar_animacion_espada(float(ex), float(ey), tipo, player_id)
+            elif accion == "sanacion":
+                self._agregar_animacion_corazon(float(ex), float(ey), player_id)
+            elif accion == "hechizo_fuego":
+                self._agregar_animacion_fuego(float(ex), float(ey), player_id)
+
+    def _agregar_animacion_espada(self, x, y, tipo, owner_id):
+        # Reemplazar animación existente del mismo dueño (1 por usuario)
+        self.animaciones_espada = [e for e in self.animaciones_espada if e.get("owner_id") != owner_id]
+        self.animaciones_espada.append({
+            "owner_id": owner_id,
+            "tipo": tipo,
+            "timer": 18,
+            "duracion": 18,
+        })
+
+    def _agregar_animacion_corazon(self, x, y, owner_id):
+        self.animaciones_efecto.append({
+            "x": x,
+            "y": y,
+            "tipo": "corazon",
+            "owner_id": owner_id,
+            "timer": 24,
+            "duracion": 24,
+        })
+
+    def _agregar_animacion_fuego(self, x, y, owner_id):
+        self.animaciones_efecto.append({
+            "x": x,
+            "y": y,
+            "tipo": "fuego",
+            "owner_id": owner_id,
+            "timer": 24,
+            "duracion": 24,
+        })
+
+    def _dibujar_animaciones_jugador(self, c, jugador_id):
+        if not jugador_id:
+            return
+        for espada in self.animaciones_espada:
+            if espada.get("owner_id") == jugador_id:
+                self._dibujar_espada_animada(c, espada)
+        for efecto in self.animaciones_efecto:
+            if efecto.get("owner_id") == jugador_id:
+                if efecto.get("tipo") == "corazon":
+                    self._dibujar_corazon_animado(c, efecto)
+                elif efecto.get("tipo") == "fuego":
+                    self._dibujar_fuego_animado(c, efecto)
+
+    def _dibujar_espada_animada(self, c, espada):
+        # Obtener posición actual del dueño
+        owner_id = espada.get("owner_id")
+        if owner_id == self.id_jugador:
+            x, y = self.px, self.py
+        else:
+            datos_owner = self.otros_jugadores.get(owner_id, {})
+            x = datos_owner.get("x", espada.get("x", 0))
+            y = datos_owner.get("y", espada.get("y", 0))
+        progress = 1 - (espada["timer"] / espada["duracion"])
+        tipo = espada["tipo"]
+
+        if tipo == "izq":
+            angle = math.radians(220 - progress * 55)
+            end_x = x + 56 * math.cos(angle)
+            end_y = y + 56 * math.sin(angle)
+        else:
+            angle = math.radians(-40 + progress * 55)
+            end_x = x + 56 * math.cos(angle)
+            end_y = y + 56 * math.sin(angle)
+
+        dx = end_x - x
+        dy = end_y - y
+        length = math.hypot(dx, dy) or 1.0
+        dx /= length
+        dy /= length
+        nx = -dy
+        ny = dx
+
+        base_x = x + dx * 10
+        base_y = y + dy * 10
+        tip_x = x + dx * 60
+        tip_y = y + dy * 60
+
+        c.create_polygon(
+            base_x + nx * 5, base_y + ny * 5,
+            tip_x + nx * 2, tip_y + ny * 2,
+            tip_x + dx * 10, tip_y + dy * 10,
+            tip_x - nx * 2, tip_y - ny * 2,
+            base_x - nx * 5, base_y - ny * 5,
+            fill="#d6dde5",
+            outline="#9aa7b3",
+            width=2,
+            smooth=True,
+        )
+        c.create_line(base_x, base_y, tip_x, tip_y, fill="#ffffff", width=2, capstyle=tk.ROUND)
+        c.create_line(base_x - nx * 8, base_y - ny * 8, base_x + nx * 8, base_y + ny * 8, fill="#c79a56", width=4, capstyle=tk.ROUND)
+        c.create_line(base_x - dx * 4, base_y - dy * 4, base_x - dx * 16, base_y - dy * 16, fill="#6b4a2e", width=5, capstyle=tk.ROUND)
+        c.create_oval(base_x - dx * 18 - 3, base_y - dy * 18 - 3, base_x - dx * 18 + 3, base_y - dy * 18 + 3, fill="#8b5a2b", outline="#3d2a18")
+
+    def _dibujar_corazon_animado(self, c, efecto):
+        x = efecto["x"]
+        y = efecto["y"]
+        progress = 1 - (efecto["timer"] / efecto["duracion"])
+        pulso = 1 + 0.35 * math.sin(progress * math.pi * 4)
+        for i, offset in enumerate([(-10, 0), (0, -6), (10, 0)]):
+            hx = x + offset[0] * (1 + progress)
+            hy = y - 10 - progress * 18 + offset[1]
+            c.create_text(hx, hy, text="♥", fill="#ff4d6d", font=("Consolas", int(16 * pulso), "bold"))
+
+    def _dibujar_fuego_animado(self, c, efecto):
+        x = efecto["x"]
+        y = efecto["y"]
+        progress = 1 - (efecto["timer"] / efecto["duracion"])
+        num_llamas = 12
+        radio_base = 18 + progress * 55
+        colores = ["#ff6f00", "#ff9800", "#ffcc00", "#ff4500"]
+        for i in range(num_llamas):
+            angulo = math.radians(i * 360 / num_llamas)
+            cx = x + radio_base * math.cos(angulo)
+            cy = y + radio_base * math.sin(angulo)
+            # punta de la llama apunta hacia afuera
+            punta_x = x + (radio_base + 32) * math.cos(angulo)
+            punta_y = y + (radio_base + 32) * math.sin(angulo)
+            perp_x = -math.sin(angulo) * 12
+            perp_y = math.cos(angulo) * 12
+            color_llama = colores[i % len(colores)]
+            c.create_polygon(
+                cx + perp_x, cy + perp_y,
+                punta_x, punta_y,
+                cx - perp_x, cy - perp_y,
+                fill=color_llama,
+                outline="#b23a00",
+                width=1,
+            )
+        # núcleo central brillante
+        nr = max(5, int(16 * (1 - progress)))
+        c.create_oval(x - nr, y - nr, x + nr, y + nr, fill="#fff176", outline="#ffcc00", width=2)
+
+    def _dibujar_barra_hp_personaje(self, c, x, y, hp, hp_max, nombre, color):
+        r = cfg.RADIO
+        hp_max = max(1, int(hp_max))
+        hp = max(0, min(int(hp), hp_max))
+        bar_w = 42
+        pct = hp / hp_max
+        by = y + r + 8
+        c.create_rectangle(x - bar_w // 2, by, x + bar_w // 2, by + 8, fill="#2d0000", outline="#000000")
+        c.create_rectangle(x - bar_w // 2, by, x - bar_w // 2 + int(bar_w * pct), by + 8, fill="#00c853", outline="")
+        c.create_text(x, by + 14, text=f"{hp}/{hp_max}", fill="#00ff88", font=("Consolas", 8, "bold"))
 
     def _crear_particulas_accion(self, x, y, accion):
-        if accion == "ataque_paladin":
-            for i in range(8):
-                angulo = (i / 8) * 2 * math.pi
-                self.particulas.append({
-                    "x": x,
-                    "y": y,
-                    "vx": 5 * math.cos(angulo),
-                    "vy": 5 * math.sin(angulo),
-                    "vida": 30,
-                    "tipo": "espada",
-                })
-        elif accion == "sanacion":
-            for i in range(12):
-                angulo = (i / 12) * 2 * math.pi
-                self.particulas.append({
-                    "x": x,
-                    "y": y,
-                    "vx": 3 * math.cos(angulo),
-                    "vy": 3 * math.sin(angulo),
-                    "vida": 45,
-                    "tipo": "sanacion",
-                })
-        elif accion == "hechizo_fuego":
-            for i in range(15):
-                angulo = (i / 15) * 2 * math.pi + (math.pi / 8)
-                self.particulas.append({
-                    "x": x,
-                    "y": y,
-                    "vx": 7 * math.cos(angulo),
-                    "vy": 7 * math.sin(angulo),
-                    "vida": 60,
-                    "tipo": "fuego",
-                })
+        return
 
     def _dibujar_particulas(self):
         """Dibuja todas las partículas activas."""
@@ -1483,6 +1804,13 @@ class JuegoMultijugador:
             g = 30
             self.px = max(cfg.RADIO + g, min(cfg.ANCHO - cfg.RADIO - g, nx))
             self.py = max(cfg.RADIO + g, min(cfg.ALTO - cfg.RADIO - g, ny))
+        elif self.estado == "practica":
+            g = 30
+            self.px = max(cfg.RADIO + g, min(cfg.ANCHO - cfg.RADIO - g, nx))
+            if ny <= cfg.RADIO + 30 or ny >= cfg.ALTO - cfg.RADIO - 30:
+                self.py = ny
+            else:
+                self.py = max(cfg.RADIO + g, min(cfg.ALTO - cfg.RADIO - g, ny))
         elif self.estado == "agua":
             self.px = max(cfg.RADIO, min(cfg.ANCHO - cfg.RADIO, nx))
             self.py = max(25 + cfg.RADIO, min(cfg.ALTO - cfg.RADIO, ny))
@@ -1503,6 +1831,8 @@ class JuegoMultijugador:
                 self._dibujar_subterraneo()
             elif self.estado == "interior":
                 self._dibujar_interior()
+            elif self.estado == "practica":
+                self._dibujar_practica()
             elif self.estado == "exterior":
                 self._dibujar_exterior()
             self._dibujar_muerte_overlay()
@@ -1513,9 +1843,12 @@ class JuegoMultijugador:
         # Actualizar timers
         if self.casteo_timer > 0:
             self.casteo_timer -= 1
-            if self.casteo_timer == 0 and self.clase == "hechicero":
-                # Lanzar hechizo de fuego
-                self._lanzar_hechizo_fuego()
+            if self.casteo_timer == 0:
+                if self.casteo_accion == "hechizo_fuego":
+                    self._lanzar_hechizo_fuego()
+                elif self.casteo_accion == "sanacion":
+                    self._sanar_cercanos()
+                self.casteo_accion = None
         
         if self.ataque_timer > 0:
             self.ataque_timer -= 1
@@ -1552,6 +1885,15 @@ class JuegoMultijugador:
                 self.px = cfg.ANCHO // 2
                 self.py = 280
                 self._dibujar_casita_arbol()
+                self.root.after(16, self._loop)
+                return
+
+            # Transición a sala de práctica (borde superior)
+            if self.py <= cfg.RADIO + 5:
+                self.estado = "practica"
+                self.px = cfg.ANCHO // 2
+                self.py = cfg.ALTO - 60
+                self._dibujar_practica()
                 self.root.after(16, self._loop)
                 return
 
@@ -1686,6 +2028,28 @@ class JuegoMultijugador:
                 self.canvas.itemconfig(self.msg, text="")
             self.canvas.tag_raise(self.msg)
 
+        elif self.estado == "practica":
+            self._actualizar_practica()
+            # Salir por borde superior o inferior
+            if self.py <= cfg.RADIO + 5 or self.py >= cfg.ALTO - cfg.RADIO - 5:
+                self.estado = "exterior"
+                self.px = cfg.ANCHO // 2
+                self.py = cfg.RADIO + 30
+                self._dibujar_exterior()
+                self.root.after(16, self._loop)
+                return
+            self._dibujar_practica()
+            self._dibujar_particulas()
+            self._dibujar_hp_bar()
+            self.canvas.tag_raise(self.hud)
+            self.canvas.itemconfig(self.jugadores_online,
+                                   text=f"Jugadores: {len(self.otros_jugadores)+1}/20")
+            if self.msg_timer > 0:
+                self.msg_timer -= 1
+            else:
+                self.canvas.itemconfig(self.msg, text="")
+            self.canvas.tag_raise(self.msg)
+
         elif self.estado == "agua":
             # Salir por el borde superior
             if self.py <= 25 + cfg.RADIO + 5:
@@ -1739,16 +2103,14 @@ class JuegoMultijugador:
         )
 
         if self.chat_activo:
-            self.canvas.itemconfig(self.chat_input, text=f"Chat: {self.chat_texto_actual}_")
-        else:
             habilidad_info = ""
             if self.clase == "paladin":
-                habilidad_info = " | F1: Ataque"
+                habilidad_info = " | F1: Espada izquierda | F2: Espada derecha"
             elif self.clase == "hechicero":
-                habilidad_info = " | F1: Castear Fuego (4 seg)"
+                habilidad_info = " | F1: Fuego (2s)"
             elif self.clase == "sanador":
-                habilidad_info = " | F1: Sanar cercanos"
-            
+                habilidad_info = " | F1: Corazones (1s)"
+
             self.canvas.itemconfig(
                 self.chat_input,
                 text=f"Presiona Enter o F12 para hablar{habilidad_info}",
@@ -1760,7 +2122,8 @@ class JuegoMultijugador:
     def _lanzar_hechizo_fuego(self):
         """Lanza el hechizo de fuego del hechicero."""
         self.accion_pendiente = "hechizo_fuego"
-        self._crear_particulas_accion(self.px, self.py, "hechizo_fuego")
+        self._agregar_animacion_fuego(self.px, self.py, self.id_jugador)
+        self._daniar_cristales_cercanos(360, 700)
 
 
 if __name__ == "__main__":
