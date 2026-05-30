@@ -243,6 +243,7 @@ class JuegoMultijugador:
         self.casteo_duracion = 0
         self.ataque_timer = 0
         self.particulas = []  # Lista de partículas para efectos visuales
+        self.efectos_recibidos = {}  # id_evento -> frames restantes (evita duplicados)
         # Sistema de HP y muerte
         self.hp = 100
         self.hp_max = 100
@@ -322,6 +323,7 @@ class JuegoMultijugador:
                         timer_srv = info.get("tu_muerte_timer")
                         if isinstance(timer_srv, int):
                             self.muerte_timer = max(0, timer_srv)
+                        self._procesar_efectos_remotos(info.get("efectos"))
                         self._registrar_chat(self.id_jugador, info.get("tu_chat"))
                         for oid, datos in self.otros_jugadores.items():
                             self._registrar_chat(oid, datos.get("chat"))
@@ -981,19 +983,7 @@ class JuegoMultijugador:
         """Paladin hace un ataque con espada."""
         self.ataque_timer = 30  # 0.5 segundos
         self.accion_pendiente = "ataque_paladin"
-        # Agregar partículas de ataque
-        for i in range(8):
-            angulo = (i / 8) * 2 * math.pi
-            vel_x = 5 * math.cos(angulo)
-            vel_y = 5 * math.sin(angulo)
-            self.particulas.append({
-                "x": self.px,
-                "y": self.py,
-                "vx": vel_x,
-                "vy": vel_y,
-                "vida": 30,
-                "tipo": "espada"
-            })
+        self._crear_particulas_accion(self.px, self.py, "ataque_paladin")
 
     def _iniciar_casteo_hechizo(self):
         """Inicia el casteo del hechizo de fuego del hechicero."""
@@ -1003,19 +993,7 @@ class JuegoMultijugador:
     def _sanar_cercanos(self):
         """Sanador sana HP propio y muestra aura de sanación."""
         self.accion_pendiente = "sanacion"
-        # Agregar partículas de sanación en círculo
-        for i in range(12):
-            angulo = (i / 12) * 2 * math.pi
-            vel_x = 3 * math.cos(angulo)
-            vel_y = 3 * math.sin(angulo)
-            self.particulas.append({
-                "x": self.px,
-                "y": self.py,
-                "vx": vel_x,
-                "vy": vel_y,
-                "vida": 45,
-                "tipo": "sanacion"
-            })
+        self._crear_particulas_accion(self.px, self.py, "sanacion")
 
     def _rata_inicial(self):
         """Devuelve el estado inicial de la rata monstruo."""
@@ -1181,6 +1159,66 @@ class JuegoMultijugador:
             if p["vida"] > 0:
                 nuevas_particulas.append(p)
         self.particulas = nuevas_particulas
+        for efecto_id in list(self.efectos_recibidos.keys()):
+            self.efectos_recibidos[efecto_id] -= 1
+            if self.efectos_recibidos[efecto_id] <= 0:
+                del self.efectos_recibidos[efecto_id]
+
+    def _procesar_efectos_remotos(self, efectos):
+        if not isinstance(efectos, list):
+            return
+        for efecto in efectos:
+            if not isinstance(efecto, dict):
+                continue
+            efecto_id = str(efecto.get("id", "")).strip()
+            if not efecto_id or efecto_id in self.efectos_recibidos:
+                continue
+            if efecto.get("estado") != self.estado:
+                continue
+            accion = str(efecto.get("accion", "")).strip().lower()
+            if accion not in ("ataque_paladin", "hechizo_fuego", "sanacion"):
+                continue
+            ex = efecto.get("x")
+            ey = efecto.get("y")
+            if not isinstance(ex, (int, float)) or not isinstance(ey, (int, float)):
+                continue
+            self.efectos_recibidos[efecto_id] = 45
+            self._crear_particulas_accion(float(ex), float(ey), accion)
+
+    def _crear_particulas_accion(self, x, y, accion):
+        if accion == "ataque_paladin":
+            for i in range(8):
+                angulo = (i / 8) * 2 * math.pi
+                self.particulas.append({
+                    "x": x,
+                    "y": y,
+                    "vx": 5 * math.cos(angulo),
+                    "vy": 5 * math.sin(angulo),
+                    "vida": 30,
+                    "tipo": "espada",
+                })
+        elif accion == "sanacion":
+            for i in range(12):
+                angulo = (i / 12) * 2 * math.pi
+                self.particulas.append({
+                    "x": x,
+                    "y": y,
+                    "vx": 3 * math.cos(angulo),
+                    "vy": 3 * math.sin(angulo),
+                    "vida": 45,
+                    "tipo": "sanacion",
+                })
+        elif accion == "hechizo_fuego":
+            for i in range(15):
+                angulo = (i / 15) * 2 * math.pi + (math.pi / 8)
+                self.particulas.append({
+                    "x": x,
+                    "y": y,
+                    "vx": 7 * math.cos(angulo),
+                    "vy": 7 * math.sin(angulo),
+                    "vida": 60,
+                    "tipo": "fuego",
+                })
 
     def _dibujar_particulas(self):
         """Dibuja todas las partículas activas."""
@@ -1722,19 +1760,7 @@ class JuegoMultijugador:
     def _lanzar_hechizo_fuego(self):
         """Lanza el hechizo de fuego del hechicero."""
         self.accion_pendiente = "hechizo_fuego"
-        # Crear partículas de fuego en la dirección frontal
-        for i in range(15):
-            angulo = (i / 15) * 2 * math.pi + (math.pi / 8)
-            vel_x = 7 * math.cos(angulo)
-            vel_y = 7 * math.sin(angulo)
-            self.particulas.append({
-                "x": self.px,
-                "y": self.py,
-                "vx": vel_x,
-                "vy": vel_y,
-                "vida": 60,
-                "tipo": "fuego"
-            })
+        self._crear_particulas_accion(self.px, self.py, "hechizo_fuego")
 
 
 if __name__ == "__main__":

@@ -15,6 +15,9 @@ lock = threading.Lock()
 broadcast_lock = threading.Lock()
 CHAT_DURACION_SEGUNDOS = 4.0
 FRAME_TIME = 1.0 / 30.0
+RADIO_DIFUSION_EFECTOS = 260
+EFECTO_DURACION_SEGUNDOS = 0.35
+efectos_recientes = []
 
 # Geometria del mapa exterior (igual al cliente) para generar spawns validos.
 RADIO_JUGADOR = 20
@@ -129,6 +132,10 @@ def difundir_estado():
         }
         snapshot_raton = copy.deepcopy(raton)
         conexiones = list(clients.items())
+        ahora = time.time()
+        while efectos_recientes and efectos_recientes[0]["expira"] <= ahora:
+            efectos_recientes.pop(0)
+        snapshot_efectos = list(efectos_recientes)
 
     desconectados = []
     with broadcast_lock:
@@ -149,6 +156,7 @@ def difundir_estado():
                     "tu_muerte_timer": players[pid][10],
                     "raton": snapshot_raton,
                     "jugadores": {oid: info for oid, info in snapshot_jugadores.items() if oid != pid},
+                    "efectos": _efectos_cercanos_para_jugador(pid, snapshot_jugadores, snapshot_efectos),
                 }
                 conn.sendall((json.dumps(payload) + "\n").encode())
             except Exception:
@@ -208,6 +216,52 @@ def _actualizar_respawn_jugadores():
             datos[0] = 400
             datos[1] = 350
             datos[2] = "exterior"
+
+
+def _efectos_cercanos_para_jugador(player_id, snapshot_jugadores, snapshot_efectos):
+    receptor = snapshot_jugadores.get(player_id)
+    if not receptor:
+        return []
+
+    rx = receptor["x"]
+    ry = receptor["y"]
+    restado = receptor["estado"]
+    visibles = []
+    for efecto in snapshot_efectos:
+        if efecto["player_id"] == player_id:
+            continue
+        if efecto["estado"] != restado:
+            continue
+        if math.hypot(efecto["x"] - rx, efecto["y"] - ry) > RADIO_DIFUSION_EFECTOS:
+            continue
+        visibles.append({
+            "id": efecto["id"],
+            "player_id": efecto["player_id"],
+            "accion": efecto["accion"],
+            "x": efecto["x"],
+            "y": efecto["y"],
+            "estado": efecto["estado"],
+        })
+    return visibles
+
+
+def registrar_evento_efecto(player_id, accion):
+    if accion not in ("ataque_paladin", "hechizo_fuego", "sanacion"):
+        return
+    datos = players.get(player_id)
+    if not datos:
+        return
+    if datos[9]:
+        return
+    efectos_recientes.append({
+        "id": f"{player_id}-{time.time_ns()}",
+        "player_id": player_id,
+        "accion": accion,
+        "x": datos[0],
+        "y": datos[1],
+        "estado": datos[2],
+        "expira": time.time() + EFECTO_DURACION_SEGUNDOS,
+    })
 
 
 def _subterraneo_vivos():
@@ -433,6 +487,7 @@ def handle_client(conn, addr):
                         players[player_id] = [x, y, estado, nombre, color, chat, clase, hp, hp_max, muerto, muerte_timer]
                         if accion:
                             aplicar_habilidad(player_id, accion)
+                            registrar_evento_efecto(player_id, accion)
                 else:
                     # Compatibilidad basica con clientes antiguos: "x,y,estado"
                     parts = data.split(",")
