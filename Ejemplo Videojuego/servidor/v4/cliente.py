@@ -131,6 +131,21 @@ class cfg:
     CHAT_DURACION_FRAMES = 240  # ~4s a 60 FPS
 
 
+# --- Quest: El Experimento del Profesor Álvaro ---
+# Cada NPC tiene: nombre, mapa donde vive, posición y color
+NPCS_DATA = {
+    "fotografo":     {"nombre": "Fotógrafo",         "estado": "exterior",     "x": 350, "y": 330, "color": "#e67e22"},
+    "borracho":      {"nombre": "Borracho del bar",  "estado": "bar",          "x": 250, "y": 300, "color": "#8e44ad"},
+    "borracho_clima": {"nombre": "Cliente ebrio",    "estado": "bar",          "x": 560, "y": 380, "color": "#9b59b6"},
+    "rumorista":     {"nombre": "Cliente nervioso",  "estado": "bar",          "x": 630, "y": 230, "color": "#34495e"},
+    "bibliotecaria": {"nombre": "Bibliotecaria",     "estado": "biblioteca",   "x": 660, "y": 220, "color": "#16a085"},
+    "ayudante":      {"nombre": "Ayudante nervioso", "estado": "casita_arbol", "x": 560, "y": 300, "color": "#c0392b"},
+    "guardia":       {"nombre": "Guardia jubilado",  "estado": "interior",     "x": 490, "y": 290, "color": "#2c3e50"},
+    "conserje":      {"nombre": "Conserje",          "estado": "exterior",     "x": 240, "y": 430, "color": "#7f8c8d"},
+    "debug_laboratorio": {"nombre": "Técnico debug", "estado": "interior",     "x": 210, "y": 260, "color": "#f1c40f"},
+}
+
+
 class JuegoMultijugador:
     def _cargar_hosts_servidor(self):
         """Carga hosts desde archivo externo, con fallback a los definidos en cfg."""
@@ -254,6 +269,9 @@ class JuegoMultijugador:
         self.muerte_timer = 0
         # Rata monstruo del sótano
         self.rata = self._rata_inicial()
+        self.profesor_id = None
+        self.alerta_laboratorio_texto = None
+        self.alerta_laboratorio_timer = 0
         # Sala de práctica
         self.cristales = self._cristales_iniciales()
         self.pinchos = self._pinchos_iniciales()
@@ -262,6 +280,12 @@ class JuegoMultijugador:
             (150, 280), (310, 420), (490, 150), (650, 380),
             (100, 460), (420, 310), (580, 480),
         ]
+
+        # Quest: El Experimento del Profesor Álvaro
+        # paso 0=inicio, 1-6=progreso, 7=completada (llave obtenida)
+        self.quest_paso = 0
+        self.quest_item = None   # item actual en el inventario
+        self.debug_quest_unlock_usado = False
 
         self.teclas = set()
         self.root.bind("<KeyPress>", self.tecla_presionada)
@@ -303,14 +327,20 @@ class JuegoMultijugador:
                         if not self.spawn_inicial_recibido and "tu_pos" in info:
                             self.px, self.py, self.estado = info["tu_pos"]
                             self.spawn_inicial_recibido = True
-                        if self.nombre_color_sincronizado:
-                            nombre_srv = info.get("tu_nombre")
-                            if isinstance(nombre_srv, str) and nombre_srv.strip():
-                                self.nombre = nombre_srv.strip()
-                            color_srv = info.get("tu_color")
-                            self.color = self._normalizar_color(color_srv, self.color)
-                        else:
-                            self.nombre_color_sincronizado = True
+                        nombre_srv = info.get("tu_nombre")
+                        if isinstance(nombre_srv, str) and nombre_srv.strip():
+                            self.nombre = nombre_srv.strip()
+                        clase_srv = info.get("tu_clase")
+                        if isinstance(clase_srv, str) and clase_srv.strip():
+                            self.clase = clase_srv.strip().lower()
+                        profesor_id_srv = info.get("profesor_id")
+                        if isinstance(profesor_id_srv, str) and profesor_id_srv:
+                            self.profesor_id = profesor_id_srv
+                        alerta_srv = info.get("laboratorio_alerta")
+                        if isinstance(alerta_srv, str) and alerta_srv.strip():
+                            self.alerta_laboratorio_texto = alerta_srv.strip()
+                            self.alerta_laboratorio_timer = 8 * 60
+                        # El nombre y color los elige el cliente; no los sobreescribimos con datos del servidor.
                         self.otros_jugadores = info.get("jugadores", {})
                         raton_srv = info.get("raton")
                         if isinstance(raton_srv, dict):
@@ -430,6 +460,10 @@ class JuegoMultijugador:
         c.create_rectangle(0, cfg.ALTO-12, cfg.ANCHO, cfg.ALTO, fill="#1a6fa8", outline="")
         c.create_text(cfg.ANCHO//2, cfg.ALTO-6, text="v  Mapa de Agua  v",
                       fill="white", font=("Consolas", 8, "bold"))
+        c.create_rectangle(0, cfg.ALTO // 2 - 70, 12, cfg.ALTO // 2 + 70, fill="#8b5a2b", outline="")
+        c.create_text(18, cfg.ALTO // 2, text="<\nB\nA\nR", fill="#ffe082", font=("Consolas", 8, "bold"))
+        c.create_rectangle(cfg.ANCHO - 12, cfg.ALTO // 2 - 70, cfg.ANCHO, cfg.ALTO // 2 + 70, fill="#5d4037", outline="")
+        c.create_text(cfg.ANCHO - 18, cfg.ALTO // 2, text="B\nI\nB\nL\nI\nO\n>", fill="#e0f2f1", font=("Consolas", 8, "bold"))
 
         # Barriles
         for bx, by in cfg.BARRILES:
@@ -444,7 +478,7 @@ class JuegoMultijugador:
 
         self._dibujar_personaje()
         self.hud = c.create_text(cfg.ANCHO//2, cfg.ALTO-18,
-                                  text="Flechas para moverse | Entra a la casa por la puerta",
+                                  text="Flechas para moverse | Izquierda: Bar | Derecha: Biblioteca | Casa por la puerta",
                                   fill="white", font=("Consolas", 12))
         self.msg = c.create_text(cfg.ANCHO//2, 30,
                                  text="", fill="yellow", font=("Consolas", 14, "bold"))
@@ -452,6 +486,104 @@ class JuegoMultijugador:
                                               text="Jugadores: 1/20", fill="lime", font=("Consolas", 10))
 
     # --- Dibujo interior ---
+
+    def _dibujar_bar(self):
+        c = self.canvas
+        c.delete("all")
+
+        # Piso de madera oscura
+        for x in range(0, cfg.ANCHO, 50):
+            for y in range(0, cfg.ALTO, 50):
+                col = "#5c3b2e" if ((x // 50) + (y // 50)) % 2 == 0 else "#6b4738"
+                c.create_rectangle(x, y, x + 50, y + 50, fill=col, outline="#4a2f25")
+
+        # Paredes
+        g = 30
+        c.create_rectangle(0, 0, cfg.ANCHO, g, fill="#3d2a1f", outline="")
+        c.create_rectangle(0, cfg.ALTO - g, cfg.ANCHO, cfg.ALTO, fill="#3d2a1f", outline="")
+        c.create_rectangle(0, 0, g, cfg.ALTO, fill="#3d2a1f", outline="")
+        c.create_rectangle(cfg.ANCHO - g, 0, cfg.ANCHO, cfg.ALTO, fill="#3d2a1f", outline="")
+
+        # Barra principal
+        c.create_rectangle(70, 90, 330, 180, fill="#4e342e", outline="#2e1a0e", width=3)
+        c.create_text(200, 78, text="Bar La Rata Tuerta", fill="#ffd166", font=("Consolas", 11, "bold"))
+        for bx in range(90, 320, 55):
+            c.create_oval(bx, 115, bx + 20, 135, fill="#ffe082", outline="#c9a13f")
+
+        # Mesas y sillas
+        mesas = [(460, 150), (620, 310), (420, 430)]
+        for mx, my in mesas:
+            c.create_oval(mx - 50, my - 35, mx + 50, my + 35, fill="#7b4f37", outline="#4a2f25", width=2)
+            c.create_rectangle(mx - 8, my + 30, mx + 8, my + 58, fill="#4a2f25", outline="")
+            c.create_rectangle(mx - 75, my - 15, mx - 55, my + 15, fill="#5d4037", outline="#2e1a0e")
+            c.create_rectangle(mx + 55, my - 15, mx + 75, my + 15, fill="#5d4037", outline="#2e1a0e")
+
+        # Indicador de salida (borde derecho)
+        c.create_rectangle(cfg.ANCHO - 24, cfg.ALTO // 2 - 80, cfg.ANCHO, cfg.ALTO // 2 + 80,
+                           fill="#228B22", outline="#00FF00", width=2)
+        c.create_text(cfg.ANCHO - 12, cfg.ALTO // 2, text=">\n>\n>", fill="#00FF00", font=("Consolas", 11, "bold"))
+
+        self._dibujar_otros_jugadores()
+        self._dibujar_personaje()
+        self.hud = c.create_text(
+            cfg.ANCHO // 2,
+            cfg.ALTO - 18,
+            text="Bar | Flechas para moverse | Salida por el borde derecho",
+            fill="white",
+            font=("Consolas", 12),
+        )
+        self.msg = c.create_text(cfg.ANCHO // 2, 42, text="", fill="#ffd166", font=("Consolas", 14, "bold"))
+        self.jugadores_online = c.create_text(10, 10, text="Jugadores: 1/20", fill="lime", font=("Consolas", 10))
+
+    def _dibujar_biblioteca(self):
+        c = self.canvas
+        c.delete("all")
+
+        # Piso claro de biblioteca
+        for x in range(0, cfg.ANCHO, 50):
+            for y in range(0, cfg.ALTO, 50):
+                col = "#d8c3a5" if ((x // 50) + (y // 50)) % 2 == 0 else "#cbb08f"
+                c.create_rectangle(x, y, x + 50, y + 50, fill=col, outline="#b08f6a")
+
+        # Paredes
+        g = 30
+        c.create_rectangle(0, 0, cfg.ANCHO, g, fill="#6d4c41", outline="")
+        c.create_rectangle(0, cfg.ALTO - g, cfg.ANCHO, cfg.ALTO, fill="#6d4c41", outline="")
+        c.create_rectangle(0, 0, g, cfg.ALTO, fill="#6d4c41", outline="")
+        c.create_rectangle(cfg.ANCHO - g, 0, cfg.ANCHO, cfg.ALTO, fill="#6d4c41", outline="")
+
+        # Estanterías con libros
+        estantes = [(80, 90, 320, 180), (80, 230, 320, 320), (80, 370, 320, 460), (460, 110, 720, 470)]
+        colores = ["#c0392b", "#2980b9", "#27ae60", "#8e44ad", "#f39c12", "#7f8c8d"]
+        for ex1, ey1, ex2, ey2 in estantes:
+            c.create_rectangle(ex1, ey1, ex2, ey2, fill="#6d4c41", outline="#4e342e", width=3)
+            for y in range(ey1 + 25, ey2, 35):
+                c.create_line(ex1 + 8, y, ex2 - 8, y, fill="#4e342e", width=2)
+                for x in range(ex1 + 12, ex2 - 20, 18):
+                    c.create_rectangle(x, y - 20, x + 12, y - 2, fill=colores[(x + y) % len(colores)], outline="")
+
+        # Mesas de lectura
+        for mx, my in [(500, 180), (610, 320), (500, 450)]:
+            c.create_rectangle(mx - 70, my - 28, mx + 70, my + 28, fill="#8d6e63", outline="#5d4037", width=2)
+            c.create_rectangle(mx - 95, my - 16, mx - 76, my + 16, fill="#6d4c41", outline="#4e342e")
+            c.create_rectangle(mx + 76, my - 16, mx + 95, my + 16, fill="#6d4c41", outline="#4e342e")
+
+        # Indicador de salida (borde izquierdo)
+        c.create_rectangle(0, cfg.ALTO // 2 - 80, 24, cfg.ALTO // 2 + 80,
+                           fill="#228B22", outline="#00FF00", width=2)
+        c.create_text(12, cfg.ALTO // 2, text="<\n<\n<", fill="#00FF00", font=("Consolas", 11, "bold"))
+
+        self._dibujar_otros_jugadores()
+        self._dibujar_personaje()
+        self.hud = c.create_text(
+            cfg.ANCHO // 2,
+            cfg.ALTO - 18,
+            text="Biblioteca | Flechas para moverse | Salida por el borde izquierdo",
+            fill="white",
+            font=("Consolas", 12),
+        )
+        self.msg = c.create_text(cfg.ANCHO // 2, 42, text="", fill="#333333", font=("Consolas", 14, "bold"))
+        self.jugadores_online = c.create_text(10, 10, text="Jugadores: 1/20", fill="lime", font=("Consolas", 10))
 
     def _dibujar_interior(self):
         c = self.canvas
@@ -866,6 +998,16 @@ class JuegoMultijugador:
                     c.create_rectangle(ox+r+5, oy-r-8, ox+r+18, oy-r+8, fill="#8b4513", outline="#654321", width=2)
                     c.create_line(ox+r+11, oy-r-8, ox+r+11, oy-r+8, fill="#654321", width=1)
                     c.create_text(ox+r+8, oy-r-2, text="+", fill="#ff0000", font=("Consolas", 12, "bold"))
+                elif clase == "profesor":
+                    # Bata de laboratorio + lentes
+                    c.create_rectangle(ox-r-6, oy-r+8, ox+r+6, oy+r+14, fill="#f4f7fb", outline="#cfd8dc", width=2)
+                    c.create_line(ox, oy-r+8, ox, oy+r+14, fill="#b0bec5", width=1)
+                    c.create_rectangle(ox-r+2, oy-r-2, ox+r-2, oy+r-4, fill="#f3d7b6", outline="#4e342e", width=2)
+                    c.create_oval(ox-10, oy-10, ox-2, oy-2, fill="", outline="#263238", width=2)
+                    c.create_oval(ox+2, oy-10, ox+10, oy-2, fill="", outline="#263238", width=2)
+                    c.create_line(ox-2, oy-6, ox+2, oy-6, fill="#263238", width=2)
+                    c.create_line(ox-r+3, oy-r+10, ox-r+12, oy-r+2, fill="#90caf9", width=2)
+                    c.create_oval(ox-r+10, oy-r, ox-r+16, oy-r+6, fill="#42a5f5", outline="#1565c0", width=1)
                 
                 if self.clase == "sanador":
                     hp_oth = datos.get("hp", 100)
@@ -875,6 +1017,9 @@ class JuegoMultijugador:
                 chat = self.chat_burbujas.get(jugador_id)
                 if chat:
                     self._dibujar_chat_en_posicion(ox, oy, chat["texto"])
+
+                if datos.get("muerto"):
+                    self._dibujar_muerte_overlay_en_posicion(ox, oy, datos.get("muerte_timer", 0))
 
     # --- Personaje ---
 
@@ -916,6 +1061,23 @@ class JuegoMultijugador:
             c.create_rectangle(x+r+5, y-r-8, x+r+18, y-r+8, fill="#8b4513", outline="#654321", width=2, tags="personaje")
             c.create_line(x+r+11, y-r-8, x+r+11, y-r+8, fill="#654321", width=1, tags="personaje")
             c.create_text(x+r+8, y-r-2, text="+", fill="#ff0000", font=("Consolas", 12, "bold"), tags="personaje")
+        elif self.clase == "profesor":
+            # Profesor de laboratorio: bata, lentes y matraz
+            c.create_rectangle(x-r-6, y-r+8, x+r+6, y+r+14, fill="#f4f7fb", outline="#cfd8dc", width=2, tags="personaje")
+            c.create_line(x, y-r+8, x, y+r+14, fill="#b0bec5", width=1, tags="personaje")
+            c.create_rectangle(x-r+2, y-r-2, x+r-2, y+r-4, fill="#f3d7b6", outline="#4e342e", width=2, tags="personaje")
+            c.create_oval(x-10, y-10, x-2, y-2, fill="", outline="#263238", width=2, tags="personaje")
+            c.create_oval(x+2, y-10, x+10, y-2, fill="", outline="#263238", width=2, tags="personaje")
+            c.create_line(x-2, y-6, x+2, y-6, fill="#263238", width=2, tags="personaje")
+            c.create_line(x-r+3, y-r+10, x-r+12, y-r+2, fill="#90caf9", width=2, tags="personaje")
+            c.create_oval(x-r+10, y-r, x-r+16, y-r+6, fill="#42a5f5", outline="#1565c0", width=1, tags="personaje")
+        elif self.clase == "mutante":
+            c.create_oval(x-r-2, y-r+2, x+r+2, y+r+6, fill="#8a4f2a", outline="#4e342e", width=2, tags="personaje")
+            c.create_oval(x-r+4, y-r+8, x+r+4, y+r+12, fill="#5d4037", outline="#2e1a0e", width=2, tags="personaje")
+            c.create_oval(x-r+12, y-r+2, x-r+20, y-r+10, fill="#8a4f2a", outline="#4e342e", width=1, tags="personaje")
+            c.create_oval(x+r-20, y-r+2, x+r-12, y-r+10, fill="#8a4f2a", outline="#4e342e", width=1, tags="personaje")
+            c.create_line(x-r+10, y+r, x-r+26, y+r+8, fill="#c0c0c0", width=3, tags="personaje")
+            c.create_text(x, y-r-6, text="RAT", fill="#ff9e9e", font=("Consolas", 9, "bold"), tags="personaje")
         
         # Mostrar efecto de casteo si está activo
         if self.casteo_timer > 0:
@@ -933,14 +1095,44 @@ class JuegoMultijugador:
                              fill=color_barra, outline="", tags="personaje")
             c.create_text(x, y+r+28, text=f"{texto_casteo}... {self.casteo_timer/60:.1f}s", 
                          fill=color_barra, font=("Consolas", 9), tags="personaje")
-            chat = self.chat_burbujas.get(self.id_jugador)
-            if chat:
-                self._dibujar_chat_en_posicion(x, y, chat["texto"])
+
+        chat = self.chat_burbujas.get(self.id_jugador)
+        if chat:
+            self._dibujar_chat_en_posicion(x, y, chat["texto"])
+
+    def _dibujar_alerta_laboratorio(self):
+        self.canvas.delete("alerta_laboratorio")
+        if self.alerta_laboratorio_timer <= 0 or not self.alerta_laboratorio_texto:
+            return
+        texto = self.alerta_laboratorio_texto
+        ancho = max(520, min(760, 16 * len(texto)))
+        x0 = cfg.ANCHO // 2 - ancho // 2
+        x1 = cfg.ANCHO // 2 + ancho // 2
+        y0 = 88
+        y1 = 170
+        self.canvas.create_rectangle(x0, y0, x1, y1, fill="#1a0000", outline="#ff3333", width=4, tags="alerta_laboratorio")
+        self.canvas.create_text(cfg.ANCHO // 2, 118, text="ALERTA DEL LABORATORIO", fill="#ff5555", font=("Consolas", 20, "bold"), tags="alerta_laboratorio")
+        self.canvas.create_text(cfg.ANCHO // 2, 150, text=texto, fill="#ffd6d6", font=("Consolas", 18, "bold"), tags="alerta_laboratorio")
 
     # --- Input ---
 
     def tecla_presionada(self, evento):
         tecla = evento.keysym.lower()
+
+        if tecla == "f9" and self.clase in ("profesor", "mutante"):
+            self.accion_pendiente = "mutante_transformar"
+            return
+
+        if self.clase == "mutante":
+            if tecla == "f1":
+                self.accion_pendiente = "mutante_esfera"
+                return
+            if tecla == "f2":
+                self.accion_pendiente = "mutante_veneno"
+                return
+            if tecla == "f3":
+                self.accion_pendiente = "mutante_velocidad"
+                return
 
         if tecla == "f1":
             if self.clase == "paladin":
@@ -952,6 +1144,10 @@ class JuegoMultijugador:
         if tecla == "f2":
             if self.clase == "paladin":
                 self._ataque_paladin_der()
+            return
+
+        if tecla == "e" and not self.chat_activo:
+            self._intentar_interactuar_npc()
             return
 
         if self.chat_activo:
@@ -1697,9 +1893,18 @@ class JuegoMultijugador:
 
     def _dibujar_muerte_overlay(self):
         """Muestra la animación de muerte sobre el jugador."""
+        self._dibujar_muerte_overlay_en_posicion(self.px, self.py, self.muerte_timer)
+        segundos = self.muerte_timer // 60 + 1
+        c = self.canvas
         x, y = self.px, self.py
         r = cfg.RADIO
-        segundos = self.muerte_timer // 60 + 1
+        # Texto de espera solo para el jugador local.
+        c.create_text(x, y + r + 18, text=f"Reapareciendo en {segundos}s...",
+                      fill="#ff4444", font=("Consolas", 9, "bold"))
+
+    def _dibujar_muerte_overlay_en_posicion(self, x, y, muerte_timer=0):
+        """Dibuja la aureola y calavera de muerte para cualquier jugador."""
+        r = cfg.RADIO
         c = self.canvas
         # Aureola dorada pulsante
         t = time.time()
@@ -1710,9 +1915,6 @@ class JuegoMultijugador:
                           fill="", outline="#ffd700", width=2)
         # Calavera
         c.create_text(x, y - r - 52, text="💀", font=("Arial", 18))
-        # Texto de espera
-        c.create_text(x, y + r + 18, text=f"Reapareciendo en {segundos}s...",
-                      fill="#ff4444", font=("Consolas", 9, "bold"))
 
     def _dibujar_hp_bar(self):
         """Dibuja la barra de HP del jugador en pantalla."""
@@ -1824,12 +2026,22 @@ class JuegoMultijugador:
         elif self.estado == "casita_arbol":
             self.px = max(100 + cfg.RADIO, min(700 - cfg.RADIO, nx))
             self.py = max(160 + cfg.RADIO, min(cfg.ALTO - cfg.RADIO, ny))
+        elif self.estado == "bar":
+            g = 30
+            self.px = max(cfg.RADIO + g, min(cfg.ANCHO - cfg.RADIO, nx))
+            self.py = max(cfg.RADIO + g, min(cfg.ALTO - cfg.RADIO - g, ny))
+        elif self.estado == "biblioteca":
+            g = 30
+            self.px = max(cfg.RADIO, min(cfg.ANCHO - cfg.RADIO - g, nx))
+            self.py = max(cfg.RADIO + g, min(cfg.ALTO - cfg.RADIO - g, ny))
 
     # --- Game loop ---
 
     def _loop(self):
         self._actualizar_timers_chat()
         self._actualizar_particulas()
+        if self.alerta_laboratorio_timer > 0:
+            self.alerta_laboratorio_timer -= 1
 
         # --- Manejar muerte del jugador ---
         if self.muerto:
@@ -1876,6 +2088,24 @@ class JuegoMultijugador:
         self._enviar_posicion()
 
         if self.estado == "exterior":
+            # Transición al bar (borde izquierdo)
+            if self.px <= cfg.RADIO + 2:
+                self.estado = "bar"
+                self.px = cfg.ANCHO - cfg.RADIO - 35
+                self.py = max(cfg.RADIO + 40, min(cfg.ALTO - cfg.RADIO - 40, self.py))
+                self._dibujar_bar()
+                self.root.after(16, self._loop)
+                return
+
+            # Transición a biblioteca (borde derecho)
+            if self.px >= cfg.ANCHO - cfg.RADIO - 2:
+                self.estado = "biblioteca"
+                self.px = cfg.RADIO + 35
+                self.py = max(cfg.RADIO + 40, min(cfg.ALTO - cfg.RADIO - 40, self.py))
+                self._dibujar_biblioteca()
+                self.root.after(16, self._loop)
+                return
+
             cx, cy, cw, ch = cfg.CASA_X, cfg.CASA_Y, cfg.CASA_W, cfg.CASA_H
             px_puerta = cx + cw // 2
             if math.hypot(self.px - px_puerta, self.py - (cy + ch)) < cfg.RADIO + 18:
@@ -1930,6 +2160,8 @@ class JuegoMultijugador:
                 for bx, by in cfg.BARRILES
             )
             self._dibujar_exterior()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self.canvas.tag_raise(self.hud)
             self.canvas.itemconfig(self.jugadores_online,
@@ -1938,6 +2170,52 @@ class JuegoMultijugador:
                 self.canvas.itemconfig(self.msg, text="Este es un barril")
                 self.msg_timer = 80
             elif self.msg_timer > 0:
+                self.msg_timer -= 1
+            else:
+                self.canvas.itemconfig(self.msg, text="")
+            self.canvas.tag_raise(self.msg)
+
+        elif self.estado == "bar":
+            # Salir por borde derecho al exterior
+            if self.px >= cfg.ANCHO - cfg.RADIO - 5:
+                self.estado = "exterior"
+                self.px = cfg.RADIO + 35
+                self.py = max(cfg.RADIO + 40, min(cfg.ALTO - cfg.RADIO - 40, self.py))
+                self._dibujar_exterior()
+                self.root.after(16, self._loop)
+                return
+
+            self._dibujar_bar()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
+            self._dibujar_particulas()
+            self.canvas.tag_raise(self.hud)
+            self.canvas.itemconfig(self.jugadores_online,
+                                   text=f"Jugadores: {len(self.otros_jugadores)+1}/20")
+            if self.msg_timer > 0:
+                self.msg_timer -= 1
+            else:
+                self.canvas.itemconfig(self.msg, text="")
+            self.canvas.tag_raise(self.msg)
+
+        elif self.estado == "biblioteca":
+            # Salir por borde izquierdo al exterior
+            if self.px <= cfg.RADIO + 5:
+                self.estado = "exterior"
+                self.px = cfg.ANCHO - cfg.RADIO - 35
+                self.py = max(cfg.RADIO + 40, min(cfg.ALTO - cfg.RADIO - 40, self.py))
+                self._dibujar_exterior()
+                self.root.after(16, self._loop)
+                return
+
+            self._dibujar_biblioteca()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
+            self._dibujar_particulas()
+            self.canvas.tag_raise(self.hud)
+            self.canvas.itemconfig(self.jugadores_online,
+                                   text=f"Jugadores: {len(self.otros_jugadores)+1}/20")
+            if self.msg_timer > 0:
                 self.msg_timer -= 1
             else:
                 self.canvas.itemconfig(self.msg, text="")
@@ -1970,14 +2248,30 @@ class JuegoMultijugador:
             tx2, ty2 = cfg.TRAMPILLA_INT_X, cfg.TRAMPILLA_INT_Y
             if (tx2 - cfg.RADIO < self.px < tx2 + cfg.TRAMPILLA_INT_W + cfg.RADIO and
                     ty2 - cfg.RADIO < self.py < ty2 + cfg.TRAMPILLA_INT_H + cfg.RADIO):
-                self.estado = "subterraneo"
-                self.px = tx2 + cfg.TRAMPILLA_INT_W // 2
-                self.py = 200
-                self._dibujar_subterraneo()
-                self.root.after(16, self._loop)
-                return
+                es_profesor_local = bool(self.id_jugador and self.profesor_id and self.id_jugador == self.profesor_id)
+                if self.quest_paso < 7 and not es_profesor_local:
+                    # Quest no completada: mostrar mensaje de bloqueo
+                    self.canvas.itemconfig(self.msg, text="🔒 Necesitas la llave del sótano para entrar")
+                    self.msg_timer = 120
+                else:
+                    self.estado = "subterraneo"
+                    self.px = tx2 + cfg.TRAMPILLA_INT_W // 2
+                    self.py = 200
+                    self._dibujar_subterraneo()
+                    self.root.after(16, self._loop)
+                    return
 
             self._dibujar_interior()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
+            # Indicador visual de cerrojo en la trampilla si la quest no está completa
+            es_profesor_local = bool(self.id_jugador and self.profesor_id and self.id_jugador == self.profesor_id)
+            if self.quest_paso < 7 and not es_profesor_local:
+                tx2, ty2 = cfg.TRAMPILLA_INT_X, cfg.TRAMPILLA_INT_Y
+                self.canvas.create_text(
+                    tx2 + cfg.TRAMPILLA_INT_W // 2, ty2 - 28,
+                    text="🔒", font=("Arial", 14),
+                )
             self._dibujar_particulas()
             self.canvas.tag_raise(self.hud)
             self.canvas.itemconfig(self.jugadores_online,
@@ -2001,6 +2295,8 @@ class JuegoMultijugador:
                 return
 
             self._dibujar_segundo_piso()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self.canvas.tag_raise(self.hud)
             self.canvas.itemconfig(self.jugadores_online,
@@ -2024,6 +2320,7 @@ class JuegoMultijugador:
                 return
 
             self._dibujar_subterraneo()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self._dibujar_hp_bar()
             self.canvas.tag_raise(self.hud)
@@ -2046,6 +2343,7 @@ class JuegoMultijugador:
                 self.root.after(16, self._loop)
                 return
             self._dibujar_practica()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self._dibujar_hp_bar()
             self.canvas.tag_raise(self.hud)
@@ -2068,6 +2366,7 @@ class JuegoMultijugador:
                 return
 
             self._dibujar_agua()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self.canvas.tag_raise(self.hud)
             self.canvas.itemconfig(self.jugadores_online,
@@ -2090,6 +2389,8 @@ class JuegoMultijugador:
                 return
 
             self._dibujar_casita_arbol()
+            self._dibujar_npcs()
+            self._dibujar_inventario()
             self._dibujar_particulas()
             self.canvas.tag_raise(self.hud)
             self.canvas.itemconfig(self.jugadores_online,
@@ -2099,6 +2400,8 @@ class JuegoMultijugador:
             else:
                 self.canvas.itemconfig(self.msg, text="")
             self.canvas.tag_raise(self.msg)
+
+        self._dibujar_alerta_laboratorio()
 
         # Recrear chat_input cada frame (c.delete("all") lo borra)
         self.chat_input = self.canvas.create_text(
@@ -2120,7 +2423,12 @@ class JuegoMultijugador:
 
             self.canvas.itemconfig(
                 self.chat_input,
-                text=f"Presiona Enter o F12 para hablar{habilidad_info}",
+                text=f"Chat: {self.chat_texto_actual}_ | Enter enviar | Esc cancelar{habilidad_info}",
+            )
+        else:
+            self.canvas.itemconfig(
+                self.chat_input,
+                text="Enter o F12: abrir chat | E: interactuar NPC",
             )
         self.canvas.tag_raise(self.chat_input)
 
@@ -2131,6 +2439,242 @@ class JuegoMultijugador:
         self.accion_pendiente = "hechizo_fuego"
         self._agregar_animacion_fuego(self.px, self.py, self.id_jugador)
         self._daniar_cristales_cercanos(360, 700)
+
+    # ---- Quest: El Experimento del Profesor Álvaro ----
+
+    def _npcs_del_mapa(self):
+        """Devuelve los NPCs que están en el mapa actual."""
+        return {k: v for k, v in NPCS_DATA.items() if v["estado"] == self.estado}
+
+    def _dibujar_npcs(self):
+        """Dibuja los NPCs del mapa actual y el indicador de interacción."""
+        c = self.canvas
+        for npc_id, npc in self._npcs_del_mapa().items():
+            x, y = npc["x"], npc["y"]
+            r = cfg.RADIO
+            color = npc["color"]
+            # Sombra
+            c.create_oval(x - r + 4, y - r + 8, x + r + 4, y + r + 8,
+                          fill=cfg.COLOR_SOMBRA_ARBOL, outline="")
+            # Cuerpo
+            c.create_oval(x - r, y - r, x + r, y + r,
+                          fill=color, outline="#000000", width=2)
+            # Cara
+            c.create_oval(x - r + 5, y - r + 2, x + r - 5, y + 4,
+                          fill="#ffcc80", outline="#e65100", width=1)
+            # Ojos
+            c.create_oval(x - 7, y - 10, x - 3, y - 6, fill="black")
+            c.create_oval(x + 3, y - 10, x + 7, y - 6, fill="black")
+            # Nombre con sombra
+            c.create_text(x + 1, y - r - 16 + 1, text=npc["nombre"],
+                          fill="black", font=("Consolas", 9, "bold"))
+            c.create_text(x, y - r - 16, text=npc["nombre"],
+                          fill="white", font=("Consolas", 9, "bold"))
+            # Indicador "Hablar [E]" si el jugador está cerca
+            dist = math.hypot(self.px - x, self.py - y)
+            if dist < 70:
+                c.create_text(x, y - r - 32, text="[E] Hablar",
+                              fill="#ffd700", font=("Consolas", 9, "bold"))
+
+    def _npc_cercano(self):
+        """Devuelve el ID del NPC más cercano (dentro de rango), o None."""
+        for npc_id, npc in self._npcs_del_mapa().items():
+            if math.hypot(self.px - npc["x"], self.py - npc["y"]) < 70:
+                return npc_id
+        return None
+
+    def _intentar_interactuar_npc(self):
+        """Intenta hablar con un NPC cercano al presionar E."""
+        npc_id = self._npc_cercano()
+        if npc_id:
+            # Evita que quede una dirección "pegada" mientras se abre el diálogo modal.
+            self.teclas.clear()
+            self._interactuar_npc(npc_id)
+
+    def _interactuar_npc(self, npc_id):
+        """Gestiona el diálogo e intercambio de items con cada NPC según el paso de la quest."""
+        paso = self.quest_paso
+
+        if npc_id == "fotografo":
+            if paso == 0:
+                messagebox.showinfo(
+                    "📷 Fotógrafo",
+                    "¡Oye, tú! Estaba aquí sentado tranquilamente cuando vi algo enorme cruzar\n"
+                    "por el callejón. ¡Enorme! ¡Saqué la cámara y lo fotografié antes de que\n"
+                    "desapareciera! Nadie me cree de todas formas...\n\n"
+                    "Toma una copia. ¡Es real, te lo juro!\n\n"
+                    "✦ Obtuviste: Foto borrosa del ratón"
+                )
+                self.quest_paso = 1
+                self.quest_item = "Foto borrosa"
+            elif paso >= 1:
+                messagebox.showinfo("📷 Fotógrafo", "Ya tienes la foto. ¡Espero que te sea útil, nadie me creyó!")
+
+        elif npc_id == "borracho":
+            if paso == 1:
+                messagebox.showinfo(
+                    "🍺 Borracho del bar",
+                    "¿Una foto? ¡Impooosible!... Espera, espera...\n\n"
+                    "Esto me recuerda al viejo Álvaro. Él venía aquí todos los días a tomar\n"
+                    "café antes de encerrarse en su laboratorio. Un día dejó su taza olvidada\n"
+                    "y nunca volvió a buscarla. Lleva semanas aquí...\n\n"
+                    "Tómala, quizás te sirva de algo.\n\n"
+                    "✦ Entregaste: Foto borrosa\n"
+                    "✦ Obtuviste: Taza de café fría"
+                )
+                self.quest_paso = 2
+                self.quest_item = "Taza de café fría"
+            elif paso == 0:
+                messagebox.showinfo("🍺 Borracho del bar", "¿Qué quieres? Déjame en paz... a menos que tengas algo interesante que mostrarme.")
+            else:
+                messagebox.showinfo("🍺 Borracho del bar", "*hipo* El viejo Álvaro... raro tipo. Espero que estés bien ahí abajo.")
+
+        elif npc_id == "bibliotecaria":
+            if paso == 2:
+                messagebox.showinfo(
+                    "📚 Bibliotecaria",
+                    "¿La taza del profesor Álvaro?! Reconocería esa taza en cualquier lugar...\n\n"
+                    "Él me prestó su manual de bioquímica avanzada y nunca lo devolvió.\n"
+                    "Pero si tienes su taza, algo me dice que puedo confiar en ti.\n\n"
+                    "Mira, él dejó estas notas de laboratorio olvidadas entre los libros.\n"
+                    "¡Tómalas, a ver si sirven de algo!\n\n"
+                    "✦ Entregaste: Taza de café fría\n"
+                    "✦ Obtuviste: Notas del laboratorio"
+                )
+                self.quest_paso = 3
+                self.quest_item = "Notas del laboratorio"
+            elif paso < 2:
+                messagebox.showinfo("📚 Bibliotecaria", "Shhh... Silencio en la biblioteca. ¿Buscas algo en particular?")
+            else:
+                messagebox.showinfo("📚 Bibliotecaria", "Espero que esas notas te ayuden. El profesor era un genio... o estaba completamente loco.")
+
+        elif npc_id == "ayudante":
+            if paso == 3:
+                messagebox.showinfo(
+                    "😰 Ayudante nervioso",
+                    "¿Las notas de Álvaro?! ¿Cómo demonios las conseguiste...?\n\n"
+                    "Escucha, yo era su asistente de laboratorio. El experimento con el ratón\n"
+                    "salió terriblemente mal. La criatura mutó y Álvaro se encerró con ella.\n"
+                    "Antes de desaparecer me entregó esto: su llavero. Pero le falta la llave\n"
+                    "más importante... El guardia del edificio la tiene.\n\n"
+                    "¡Búscalo en el interior de la casa!\n\n"
+                    "✦ Entregaste: Notas del laboratorio\n"
+                    "✦ Obtuviste: Llavero incompleto"
+                )
+                self.quest_paso = 4
+                self.quest_item = "Llavero incompleto"
+            elif paso < 3:
+                messagebox.showinfo("😰 Ayudante nervioso", "*mira nervioso a su alrededor* No... no quiero hablar de Álvaro. Todavía no.")
+            else:
+                messagebox.showinfo("😰 Ayudante nervioso", "¡Ten cuidado ahí abajo! Esa cosa es... peligrosa. Mucho.")
+
+        elif npc_id == "guardia":
+            if paso == 4:
+                messagebox.showinfo(
+                    "👮 Guardia jubilado",
+                    "El llavero del profesor... Así que tú también lo estás buscando.\n\n"
+                    "Álvaro me entregó la llave del sótano 'para guardarla en caso de\n"
+                    "emergencia'. Lleva semanas sin aparecer... supongo que ya es una emergencia.\n\n"
+                    "Pero antes de dártela necesito ver su carnet universitario como prueba\n"
+                    "de que realmente lo conoces. El conserje encontró algo hace unos días.\n"
+                    "Búscalo afuera del edificio.\n\n"
+                    "✦ Entregaste: Llavero incompleto\n"
+                    "✦ Pista: busca al Conserje en el exterior"
+                )
+                self.quest_paso = 5
+                self.quest_item = None
+            elif paso == 6:
+                messagebox.showinfo(
+                    "👮 Guardia jubilado",
+                    "...Dios mío. Es él, es el carnet del profesor Álvaro.\n\n"
+                    "Algo debe haber pasado ahí abajo. No sé si fue un accidente o algo peor.\n"
+                    "Toma, esta es la llave que él me dejó. Úsala bien.\n\n"
+                    "¡Y ten mucho, MUCHO cuidado ahí abajo!\n\n"
+                    "✦ Entregaste: Carnet universitario\n"
+                    "✦ Obtuviste: Llave del sótano 🗝️\n"
+                    "✦ ¡Quest completada! Ya puedes bajar al sótano"
+                )
+                self.quest_paso = 7
+                self.quest_item = "Llave del sótano"
+            elif paso < 4:
+                messagebox.showinfo("👮 Guardia jubilado", "La trampilla del sótano está cerrada con llave. No puedo dejar entrar a cualquiera.")
+            elif paso == 5:
+                messagebox.showinfo("👮 Guardia jubilado", "Necesito el carnet universitario del profesor. El conserje lo tiene, búscalo afuera.")
+            else:
+                messagebox.showinfo("👮 Guardia jubilado", "Ya tienes la llave. ¡Ten cuidado ahí abajo, la criatura es muy peligrosa!")
+
+        elif npc_id == "conserje":
+            if paso == 5:
+                messagebox.showinfo(
+                    "🧹 Conserje",
+                    "*suspira* ¿El carnet del profesor? Sí... lo encontré tirado en el suelo\n"
+                    "hace unos días. Muy raro, muy raro.\n\n"
+                    "¿Tú también escuchaste los ruidos que vienen del sótano por las noches?\n"
+                    "Toma el carnet, yo no sé qué hacer con eso.\n\n"
+                    "✦ Obtuviste: Carnet universitario de Álvaro"
+                )
+                self.quest_paso = 6
+                self.quest_item = "Carnet universitario"
+            elif paso < 5:
+                messagebox.showinfo("🧹 Conserje", "Hola. ¿Estás bien? Estos últimos días hay ruidos muy extraños que vienen del sótano...")
+            else:
+                messagebox.showinfo("🧹 Conserje", "¿Ya bajaste al sótano? Espero que hayas salido bien. ¡Esos ruidos dan miedo!")
+
+        elif npc_id == "borracho_clima":
+            messagebox.showinfo(
+                "🍻 Cliente ebrio",
+                "*hip* ¿Sentiste ese viento? Te lo digo yo... mañana llueve seguro.\n"
+                "Cuando me duele la rodilla izquierda nunca falla el clima...\n"
+                "Aunque bueno... también me duele cuando no llueve. *hip*"
+            )
+
+        elif npc_id == "rumorista":
+            messagebox.showinfo(
+                "😨 Cliente nervioso",
+                "Dicen que en el laboratorio del profesor Álvaro se oyen chillidos\n"
+                "a medianoche... y que algo raspa las paredes desde adentro.\n"
+                "Yo no me acercaría ni loco. Hay rumores terribles ahí abajo."
+            )
+
+        elif npc_id == "debug_laboratorio":
+            tx2, ty2 = cfg.TRAMPILLA_INT_X, cfg.TRAMPILLA_INT_Y
+            if self.quest_paso < 7:
+                self.debug_quest_unlock_usado = True
+                self.quest_paso = 7
+                self.quest_item = "Llave del sótano"
+                messagebox.showinfo(
+                    "🧪 Técnico debug",
+                    "DEBUG ACTIVADO:\n"
+                    "Quest desbloqueada y acceso al laboratorio habilitado.\n"
+                    "Entrando al subterráneo..."
+                )
+            else:
+                messagebox.showinfo("🧪 Técnico debug", "Debug activo: entrando directo al laboratorio.")
+
+            self.estado = "subterraneo"
+            self.px = tx2 + cfg.TRAMPILLA_INT_W // 2
+            self.py = 200
+            self._dibujar_subterraneo()
+
+    def _dibujar_inventario(self):
+        """Dibuja el item actual y progreso de la quest en la esquina superior derecha."""
+        if self.quest_paso == 0:
+            return
+        c = self.canvas
+        if self.quest_paso == 7:
+            txt_item = "🗝️ Llave del sótano (quest completada)"
+            color_item = "#ffd700"
+        elif self.quest_item:
+            txt_item = f"Inventario: {self.quest_item}"
+            color_item = "#90ee90"
+        else:
+            txt_item = "Inventario: vacío"
+            color_item = "#aaaaaa"
+        c.create_text(cfg.ANCHO - 10, 28, text=txt_item,
+                      fill=color_item, font=("Consolas", 9, "bold"), anchor="e")
+        paso_txt = f"Quest Álvaro: paso {self.quest_paso}/7"
+        c.create_text(cfg.ANCHO - 10, 44, text=paso_txt,
+                      fill="#888888", font=("Consolas", 8), anchor="e")
 
 
 if __name__ == "__main__":
