@@ -1,0 +1,6 @@
+# Uno por linea. El cliente intenta en orden.
+# Puedes poner dominio (recomendado) o IP.
+# Si este archivo existe, reemplaza la lista interna del cliente.
+
+44.212.20.204
+127.0.0.1
