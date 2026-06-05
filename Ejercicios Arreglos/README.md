@@ -2,40 +2,46 @@
 
 En esta sección encontrarás ejercicios temáticos para practicar arreglos (listas) en Python.
 
-## 1) Recompensas en One Piece
+## 1) Recompensas en One Piece (`one_piece.py`)
 
 ![Recompensas en One Piece](img/one_piece.jpg)
 
 La Marina ha publicado recompensas por capturar a los piratas más peligrosos del mundo.
 
-Dispones de dos arreglos paralelos:
-- Uno con los nombres de los piratas.
-- Otro con sus recompensas (en millones de berries).
+Dispones de un solo arreglo llamado `recompensas_piratas`, donde cada elemento contiene:
+- Nombre del pirata.
+- Recompensa en millones de berries.
 
 ```python
-piratas = [
-	"Monkey D. Luffy", "Roronoa Zoro", "Sanji", "Nami", "Usopp", "Nico Robin",
-	"Franky", "Brook", "Jinbe",
-	"Shanks", "Marshall D. Teach", "Charlotte Linlin", "Kaido", "Buggy",
-	"Trafalgar D. Water Law", "Eustass Kid"
-]
-
-recompensas = [
-	3000, 1200, 1100, 366, 200, 930,
-	500, 383, 1100,
-	4000, 3960, 4388, 4611, 3189,
-	3000, 3000
+recompensas_piratas = [
+	["Monkey D. Luffy", 3000],
+	["Roronoa Zoro", 1200],
+	["Sanji", 1100],
+	["Nami", 366],
+	["Usopp", 200],
+	["Nico Robin", 930],
+	["Franky", 500],
+	["Brook", 383],
+	["Jinbe", 1100],
+	["Shanks", 4000],
+	["Marshall D. Teach", 3960],
+	["Charlotte Linlin", 4388],
+	["Kaido", 4611],
+	["Buggy", 3189],
+	["Trafalgar D. Water Law", 3000],
+	["Eustass Kid", 3000]
 ]
 ```
 
 Desarrolla un programa que permita:
-1. **Pirata más buscado:** encontrar al pirata con la recompensa más alta y mostrar su nombre junto al valor.
-2. **Piratas sobre un umbral:** pedir al usuario un umbral de recompensa (por ejemplo, 1000) y mostrar todos los piratas cuya recompensa sea mayor.
-3. **Resumen de recompensas:** calcular y mostrar el total y el promedio de todas las recompensas.
+1. **Separar arreglos:** a partir de `recompensas_piratas`, crear dos arreglos paralelos llamados `piratas` y `recompensas` con el nombre de los piratas y sus respectivas recompensas.
+2. **Pirata más buscado:** encontrar al pirata con la recompensa más alta y mostrar su nombre junto al valor.
+3. **Piratas sobre un umbral:** pedir al usuario un umbral de recompensa (por ejemplo, 1000) y mostrar todos los piratas cuya recompensa sea mayor.
+4. **Resumen de recompensas:** calcular y mostrar el total y el promedio de todas las recompensas.
 
 ---
 
-## 2) La Leyenda de Zelda
+## 2) La Leyenda de Zelda (`link.py`)
 
 ![La Leyenda de Zelda](img/link.jpg)
 
@@ -45,7 +51,7 @@ Reglas del juego:
 - Link puede tener varios objetos en su inventario.
 - Link puede equipar **máximo 4 objetos**.
 - Solo puede equipar objetos que estén en su inventario.
-- Al inicio, no tiene objetos.
+- Al inicio, no tiene objetos (inventario = [ ]).
 
 Crea un programa con menú que permita:
 1. Agregar un objeto al inventario.
@@ -59,7 +65,7 @@ Crea un programa con menú que permita:
 
 ---
 
-## 3) Días de Licencia
+## 3) Días de Licencia (`licencia.py`)
 
 ![Días de Licencia](img/licencia.jpg)
 
@@ -77,14 +83,19 @@ Calcula y muestra:
 
 ---
 
-## 4) Torneo de Street Fighter
+## 4) Torneo de Street Fighter (`torneo.py`)
 
 ![Torneo de Street Fighter](img/torneo.jpg)
 
 M. Bison, líder de Shadaloo, organiza un torneo para demostrar quién es el más fuerte.
 
 Debes crear un programa que:
-1. Permita ingresar **8 peleadores** en un arreglo.
+1. Comience con un arreglo de peleadores ya definido, por ejemplo:
+
+```python
+peleadores = ["M. Bison", "Ryu", "Ken", "Chun-Li", "Zangief", "Guile", "Vega", "Dhalsim"]
+```
+
 2. Muestre los enfrentamientos según el siguiente formato:
 
 **Cuartos de final**
@@ -106,34 +117,28 @@ Al final, muestra el campeón del torneo.
 
 ---
 
-## 5) Skyrim: Inventario Limitado
+## 5) Skyrim: Inventario Limitado (`skyrim.py`)
 
 ![Skyrim](img/skyrim.jpg)
 
 En un baúl antiguo encuentras varios objetos y decides guardarlos, pero tu inventario tiene capacidad limitada.
 
-Objetos iniciales:
-- Moneda de oro
-- Manzana dulce
-- Mapa mundial
-- Poción recuperativa
-- Libro antiguo
-
 Regla principal:
+- Al comienzo no tienes nada en el inventario.
 - El inventario tiene un máximo de **5 objetos**.
 
 Crea un programa con menú que permita:
 1. Ver inventario actual.
-2. Agregar un objeto (solo si no está lleno).
+2. Agregar un objeto (solo si el inventario no está lleno).
 3. Dejar un objeto:
-   - Mostrar los objetos numerados.
+   - Mostrar los objetos numerados. (0:Manzana Dulce | 1:Libro antiguo | 2:Moneda de oro | etc...)
    - Pedir al usuario el número del objeto a eliminar.
-4. Ingresar una palabra y eliminar todos los objetos que la contengan.
+4. Ingresar una palabra y eliminar todos los objetos del inventario que la contengan.
 5. Salir.
 
 ---
 
-## 6) Frutería
+## 6) Frutería (`fruteria.py`)
 
 ![Frutería](img/fruteria.jpg)
 
@@ -162,7 +167,7 @@ Desarrolla un programa que:
 
 ---
 
-## 7) Volver al Futuro
+## 7) Volver al Futuro (`tiempo.py`)
 
 ![Volver al Futuro](img/tiempo.jpg)
 
@@ -181,6 +186,7 @@ personajes = [
 ```
 
 Ahora resuelve:
-1. **Mostrar viajes:** imprimir todos los viajes realizados por cada personaje.
+1. **Viaje más lejano:** busca al personaje que ha viajado a un año más lejano (considera que estamos en 2026).
 2. **Filtrar por umbral:** pedir al usuario un año umbral y mostrar qué personajes viajaron a un año posterior.
+3. **Nuevo viaje de Marty:** Marty realiza un nuevo viaje al 2022. Agrega ese viaje en su listado de años.
 

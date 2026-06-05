@@ -9,11 +9,11 @@ def pedir_ganador(pelea, a, b):
         print("Ganador invalido. Debe ser uno de los dos peleadores.")
 
 
-peleadores = []
+peleadores = ["Mr.Bison", "Ryo", "Ken", "Chunly", "Zanguief", "Guile", "Vega", "Dalshim"]
 print("=== Torneo Street Fighter ===")
-for i in range(1, 9):
-    nombre = input(f"Ingresa peleador P{i}: ").strip()
-    peleadores.append(nombre)
+print("Peleadores:")
+for i, nombre in enumerate(peleadores, start=1):
+    print(f"P{i}: {nombre}")
 
 # Cuartos de final
 g1 = pedir_ganador(1, peleadores[0], peleadores[2])

@@ -1,10 +1,4 @@
-inventario = [
-    "Moneda de oro",
-    "Manzana dulce",
-    "Mapa mundial",
-    "Pocion recuperativa",
-    "Libro antiguo"
-]
+inventario = []
 
 MAX_OBJETOS = 5
 
