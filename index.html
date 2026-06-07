@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fundamentos - Laboratorio Python</title>
+  <title>Fundamentos - Laboratorio Python v2</title>
   <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
   <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
   <style>
     :root {
-      --bg: #f5f2e8;
-      --paper: #fffdf7;
+      --bg: #f8f5eb;
+      --surface: #fffdf7;
       --ink: #1f2a37;
+      --muted: #51606f;
       --accent: #0f766e;
-      --accent-2: #b45309;
+      --accent-2: #c2410c;
       --line: #e6dcc8;
+      --chip: #eef8f6;
     }
 
     * { box-sizing: border-box; }
@@ -22,73 +24,145 @@
       margin: 0;
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       color: var(--ink);
-      background: radial-gradient(circle at top right, #e2f8f3 0%, var(--bg) 45%);
+      background: radial-gradient(circle at top right, #ddf8f1 0%, var(--bg) 45%);
       line-height: 1.45;
     }
 
-    header {
-      padding: 2rem 1rem;
-      border-bottom: 2px dashed var(--line);
-      background: linear-gradient(120deg, #fff9ea 0%, #f0fffb 100%);
-    }
-
     .wrap {
-      max-width: 1000px;
+      max-width: 1100px;
       margin: 0 auto;
       padding: 0 1rem;
     }
 
-    h1 { margin: 0 0 .5rem; }
+    header {
+      padding: 2rem 0 1.25rem;
+      border-bottom: 2px dashed var(--line);
+      background: linear-gradient(120deg, #fff9ea 0%, #f0fffb 100%);
+    }
 
-    .subtitle { margin: 0; color: #355; }
+    h1 { margin: 0 0 .35rem; }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+    }
 
     .links {
       display: flex;
       flex-wrap: wrap;
-      gap: .75rem;
-      margin-top: 1rem;
+      gap: .7rem;
+      margin-top: .95rem;
     }
 
     .links a {
       text-decoration: none;
-      background: var(--paper);
+      background: var(--surface);
       color: var(--accent);
       border: 1px solid var(--line);
-      padding: .5rem .75rem;
+      padding: .48rem .72rem;
       border-radius: 999px;
       font-weight: 700;
+      transition: transform .15s ease;
     }
 
-    main { padding: 1.25rem 0 2rem; }
+    .links a:hover { transform: translateY(-1px); }
 
-    section {
-      background: var(--paper);
+    main { padding: 1.1rem 0 2rem; }
+
+    .panel {
+      background: var(--surface);
       border: 1px solid var(--line);
       border-radius: 14px;
       padding: 1rem;
       margin-bottom: 1rem;
     }
 
-    h2 { margin-top: 0; color: var(--accent-2); }
+    .grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 1rem;
+    }
+
+    .topic-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: .6rem;
+    }
+
+    .topic-list button {
+      width: 100%;
+      text-align: left;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--ink);
+      border-radius: 10px;
+      padding: .65rem .75rem;
+      cursor: pointer;
+      font-size: .95rem;
+      font-weight: 700;
+    }
+
+    .topic-list button.active {
+      border-color: #8bd3c4;
+      background: #e5fbf5;
+      color: #0b645d;
+    }
+
+    .snippet-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .5rem;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--accent-2);
+      font-size: 1.2rem;
+    }
+
+    .copy-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #334155;
+      border-radius: 9px;
+      padding: .45rem .7rem;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .copy-status {
+      margin: .2rem 0 .65rem;
+      color: #0b766e;
+      min-height: 1.2em;
+      font-size: .92rem;
+    }
 
     py-repl {
-      min-height: 260px;
+      min-height: 290px;
       border-radius: 10px;
       overflow: hidden;
     }
 
     footer {
-      padding: 1rem;
+      padding: 1rem 0 1.5rem;
       border-top: 2px dashed var(--line);
       color: #445;
+    }
+
+    @media (max-width: 880px) {
+      .grid { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <header>
     <div class="wrap">
-      <h1>Fundamentos - Laboratorio Python</h1>
-      <p class="subtitle">Prueba snippets de Python en el navegador con PyScript.</p>
+      <h1>Fundamentos - Laboratorio Python v2</h1>
+      <p class="subtitle">Selecciona un ejercicio por tema y pruebalo en vivo en el navegador.</p>
       <nav class="links" aria-label="Enlaces rapidos">
         <a href="README.md">README</a>
         <a href="Ejercicios%20Arreglos/README.md">Arreglos</a>
@@ -100,50 +174,97 @@
   </header>
 
   <main class="wrap">
-    <section>
-      <h2>Snippet 1 - Saludo con funcion</h2>
-      <py-repl>
-def saludar(nombre, edad=None, carrera=None):
+    <section class="panel">
+      <div class="grid">
+        <aside>
+          <h2>Temas y Snippets</h2>
+          <ul class="topic-list">
+            <li><button class="snippet-option active" data-key="funciones-saludos">Funciones: saludo con parametros</button></li>
+            <li><button class="snippet-option" data-key="diccionarios-dragon">Diccionarios: filtrar peleadores</button></li>
+            <li><button class="snippet-option" data-key="arreglos-umbral">Arreglos: filtrar por umbral</button></li>
+            <li><button class="snippet-option" data-key="funciones-matematicas">Funciones: operaciones basicas</button></li>
+          </ul>
+        </aside>
+
+        <article>
+          <div class="snippet-head">
+            <h2 id="snippet-title">Funciones: saludo con parametros</h2>
+            <button id="copy-btn" class="copy-btn" type="button">Copiar codigo</button>
+          </div>
+          <p id="copy-status" class="copy-status"></p>
+          <py-repl id="snippet-repl"></py-repl>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Version 2 de la GitHub Page: incluye selector de ejercicios y boton para copiar codigo.
+    </div>
+  </footer>
+
+  <script>
+    const snippets = {
+      "funciones-saludos": {
+        title: "Funciones: saludo con parametros",
+        code: `def saludar(nombre, edad=None, carrera=None):
     mensaje = f"Hola {nombre}"
     if edad is not None:
         if edad < 18:
-            mensaje += f"\nQue joven eres con {edad} anios"
+            mensaje += f"\\nQue joven eres con {edad} anios"
         else:
-            mensaje += f"\nToda una experiencia con {edad} anios"
+            mensaje += f"\\nToda una experiencia con {edad} anios"
     if carrera is not None:
-        mensaje += f"\nEstudias {carrera}, mucho exito"
+        mensaje += f"\\nEstudias {carrera}, mucho exito"
     return mensaje
 
 print(saludar("Pepe"))
 print("---")
-print(saludar("Juan", 21, "Informatica"))
-      </py-repl>
-    </section>
-
-    <section>
-      <h2>Snippet 2 - Filtrar diccionarios</h2>
-      <py-repl>
-peleadores = [
-    {"nombre": "Goku", "raza": "Saiyajin", "poder": 80000},
-    {"nombre": "Vegeta", "raza": "Saiyajin", "poder": 60000},
-    {"nombre": "Krillin", "raza": "Humano", "poder": 35000},
-    {"nombre": "Piccolo", "raza": "Namekusejin", "poder": 70000}
+print(saludar("Juan", 21, "Informatica"))`
+      },
+      "diccionarios-dragon": {
+        title: "Diccionarios: filtrar peleadores",
+        code: `peleadores = [
+    {"nombre": "Goku", "raza": "Saiyajin", "poder_de_pelea": 80000},
+    {"nombre": "Vegeta", "raza": "Saiyajin", "poder_de_pelea": 60000},
+    {"nombre": "Krillin", "raza": "Humano", "poder_de_pelea": 35000},
+    {"nombre": "Piccolo", "raza": "Namekusejin", "poder_de_pelea": 70000}
 ]
 
-print("Poder mayor a 40000:")
+print("Peleadores con poder mayor a 40000")
 for p in peleadores:
-    if p["poder"] > 40000:
-        print("-", p["nombre"], p["poder"])
-      </py-repl>
-    </section>
+    if p["poder_de_pelea"] > 40000:
+        print("-", p["nombre"], p["poder_de_pelea"])
 
-    <section>
-      <h2>Snippet 3 - Operaciones matematicas</h2>
-      <py-repl>
-def sumar(x, y):
+print("\\nRaza Saiyajin")
+for p in peleadores:
+    if p["raza"] == "Saiyajin":
+        print("-", p["nombre"])`
+      },
+      "arreglos-umbral": {
+        title: "Arreglos: filtrar por umbral",
+        code: `piratas = ["Luffy", "Zoro", "Nami", "Robin", "Kaido"]
+recompensas = [3000, 1200, 366, 930, 4611]
+umbral = 1000
+
+print(f"Piratas con recompensa mayor a {umbral}")
+for i in range(len(piratas)):
+    if recompensas[i] > umbral:
+        print(f"- {piratas[i]} ({recompensas[i]})")`
+      },
+      "funciones-matematicas": {
+        title: "Funciones: operaciones basicas",
+        code: `def sumar(x, y):
     r = x + y
     if r > 100:
         print("El resultado es demasiado grande")
+    return r
+
+def restar(x, y):
+    r = x - y
+    if r < 0:
+        print("El resultado es negativo")
     return r
 
 def dividir(x, y):
@@ -151,16 +272,50 @@ def dividir(x, y):
         return "No se puede dividir por cero"
     return round(x / y, 2)
 
-print("sumar(13, 9) =", sumar(13, 9))
-print("dividir(11, 5) =", dividir(11, 5))
-      </py-repl>
-    </section>
-  </main>
+print("sumar(3,12)=", sumar(3, 12))
+print("restar(4,9)=", restar(4, 9))
+print("dividir(11,5)=", dividir(11, 5))`
+      }
+    };
 
-  <footer>
-    <div class="wrap">
-      Sitio pensado para practica de Fundamentos de Programacion en Python.
-    </div>
-  </footer>
+    const repl = document.getElementById("snippet-repl");
+    const title = document.getElementById("snippet-title");
+    const copyBtn = document.getElementById("copy-btn");
+    const copyStatus = document.getElementById("copy-status");
+    const buttons = Array.from(document.querySelectorAll(".snippet-option"));
+
+    let currentKey = "funciones-saludos";
+
+    function renderSnippet(key) {
+      currentKey = key;
+      const data = snippets[key];
+      title.textContent = data.title;
+      repl.textContent = data.code;
+      copyStatus.textContent = "";
+
+      buttons.forEach((btn) => {
+        if (btn.dataset.key === key) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+    }
+
+    buttons.forEach((btn) => {
+      btn.addEventListener("click", () => renderSnippet(btn.dataset.key));
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(snippets[currentKey].code);
+        copyStatus.textContent = "Codigo copiado al portapapeles.";
+      } catch (err) {
+        copyStatus.textContent = "No se pudo copiar automaticamente. Copia manualmente desde el editor.";
+      }
+    });
+
+    renderSnippet(currentKey);
+  </script>
 </body>
 </html>
