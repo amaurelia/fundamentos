@@ -4,6 +4,15 @@ Repositorio con ejemplos y ejercicios en Python para el ramo de **Fundamentos de
 
 ---
 
+## Wiki y Sitio Interactivo
+
+- Wiki en el repositorio: `Wiki/Home.md`
+- GitHub Page (raíz del proyecto): `index.html`
+
+> En la GitHub Page se incluyen snippets de Python ejecutables con PyScript.
+
+---
+
 ## Get Started
 
 ### Requisitos previos

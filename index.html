@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fundamentos - Laboratorio Python</title>
+  <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+  <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+  <style>
+    :root {
+      --bg: #f5f2e8;
+      --paper: #fffdf7;
+      --ink: #1f2a37;
+      --accent: #0f766e;
+      --accent-2: #b45309;
+      --line: #e6dcc8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(circle at top right, #e2f8f3 0%, var(--bg) 45%);
+      line-height: 1.45;
+    }
+
+    header {
+      padding: 2rem 1rem;
+      border-bottom: 2px dashed var(--line);
+      background: linear-gradient(120deg, #fff9ea 0%, #f0fffb 100%);
+    }
+
+    .wrap {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    h1 { margin: 0 0 .5rem; }
+
+    .subtitle { margin: 0; color: #355; }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-top: 1rem;
+    }
+
+    .links a {
+      text-decoration: none;
+      background: var(--paper);
+      color: var(--accent);
+      border: 1px solid var(--line);
+      padding: .5rem .75rem;
+      border-radius: 999px;
+      font-weight: 700;
+    }
+
+    main { padding: 1.25rem 0 2rem; }
+
+    section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    h2 { margin-top: 0; color: var(--accent-2); }
+
+    py-repl {
+      min-height: 260px;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    footer {
+      padding: 1rem;
+      border-top: 2px dashed var(--line);
+      color: #445;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>Fundamentos - Laboratorio Python</h1>
+      <p class="subtitle">Prueba snippets de Python en el navegador con PyScript.</p>
+      <nav class="links" aria-label="Enlaces rapidos">
+        <a href="README.md">README</a>
+        <a href="Ejercicios%20Arreglos/README.md">Arreglos</a>
+        <a href="Ejercicios%20Diccionarios/README.md">Diccionarios</a>
+        <a href="Ejercicios%20Funciones/README.md">Funciones</a>
+        <a href="Wiki/Home.md">Wiki (en repo)</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>Snippet 1 - Saludo con funcion</h2>
+      <py-repl>
+def saludar(nombre, edad=None, carrera=None):
+    mensaje = f"Hola {nombre}"
+    if edad is not None:
+        if edad < 18:
+            mensaje += f"\nQue joven eres con {edad} anios"
+        else:
+            mensaje += f"\nToda una experiencia con {edad} anios"
+    if carrera is not None:
+        mensaje += f"\nEstudias {carrera}, mucho exito"
+    return mensaje
+
+print(saludar("Pepe"))
+print("---")
+print(saludar("Juan", 21, "Informatica"))
+      </py-repl>
+    </section>
+
+    <section>
+      <h2>Snippet 2 - Filtrar diccionarios</h2>
+      <py-repl>
+peleadores = [
+    {"nombre": "Goku", "raza": "Saiyajin", "poder": 80000},
+    {"nombre": "Vegeta", "raza": "Saiyajin", "poder": 60000},
+    {"nombre": "Krillin", "raza": "Humano", "poder": 35000},
+    {"nombre": "Piccolo", "raza": "Namekusejin", "poder": 70000}
+]
+
+print("Poder mayor a 40000:")
+for p in peleadores:
+    if p["poder"] > 40000:
+        print("-", p["nombre"], p["poder"])
+      </py-repl>
+    </section>
+
+    <section>
+      <h2>Snippet 3 - Operaciones matematicas</h2>
+      <py-repl>
+def sumar(x, y):
+    r = x + y
+    if r > 100:
+        print("El resultado es demasiado grande")
+    return r
+
+def dividir(x, y):
+    if y == 0:
+        return "No se puede dividir por cero"
+    return round(x / y, 2)
+
+print("sumar(13, 9) =", sumar(13, 9))
+print("dividir(11, 5) =", dividir(11, 5))
+      </py-repl>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      Sitio pensado para practica de Fundamentos de Programacion en Python.
+    </div>
+  </footer>
+</body>
+</html>
