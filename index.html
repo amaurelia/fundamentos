@@ -141,6 +141,20 @@
       font-size: .92rem;
     }
 
+    .raw-code {
+      margin-top: .7rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: .65rem;
+      white-space: pre-wrap;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: .88rem;
+      color: #334155;
+      max-height: 220px;
+      overflow: auto;
+    }
+
     py-repl {
       min-height: 290px;
       border-radius: 10px;
@@ -192,7 +206,66 @@
             <button id="copy-btn" class="copy-btn" type="button">Copiar codigo</button>
           </div>
           <p id="copy-status" class="copy-status"></p>
-          <py-repl id="snippet-repl"></py-repl>
+          <div id="repl-host">
+            <py-repl id="snippet-repl-0" style="min-height: 290px; border-radius: 10px; overflow: hidden;">def saludar(nombre, edad=None, carrera=None):
+    mensaje = f"Hola {nombre}"
+    if edad is not None:
+        if edad < 18:
+            mensaje += f"\nQue joven eres con {edad} anios"
+        else:
+            mensaje += f"\nToda una experiencia con {edad} anios"
+    if carrera is not None:
+        mensaje += f"\nEstudias {carrera}, mucho exito"
+    return mensaje
+
+print(saludar("Pepe"))
+print("---")
+print(saludar("Juan", 21, "Informatica"))</py-repl>
+            <py-repl id="snippet-repl-1" style="display:none; min-height: 290px; border-radius: 10px; overflow: hidden;">peleadores = [
+    {"nombre": "Goku", "raza": "Saiyajin", "poder_de_pelea": 80000},
+    {"nombre": "Vegeta", "raza": "Saiyajin", "poder_de_pelea": 60000},
+    {"nombre": "Krillin", "raza": "Humano", "poder_de_pelea": 35000},
+    {"nombre": "Piccolo", "raza": "Namekusejin", "poder_de_pelea": 70000}
+]
+
+# Filtrar peleadores "Saiyajin"
+for p in peleadores:
+    if p["raza"] == "Saiyajin":
+        print(f"{p['nombre']} es {p['raza']}")
+
+# Encontrar el mas poderoso
+el_mas_poderoso = max(peleadores, key=lambda p: p["poder_de_pelea"])
+print(f"\nEl mas poderoso: {el_mas_poderoso['nombre']}")</py-repl>
+            <py-repl id="snippet-repl-2" style="display:none; min-height: 290px; border-radius: 10px; overflow: hidden;">arreglo = [15, 8, 23, 42, 16, 9, 35, 50, 12]
+umbral = 20
+
+# Filtrar numeros mayores al umbral
+mayores = [n for n in arreglo if n > umbral]
+
+print(f"Arreglo original: {arreglo}")
+print(f"Umbral: {umbral}")
+print(f"Numeros mayores a {umbral}: {mayores}")
+print(f"Total de numeros mayores: {len(mayores)}")</py-repl>
+            <py-repl id="snippet-repl-3" style="display:none; min-height: 290px; border-radius: 10px; overflow: hidden;">def sumar(a, b):
+    return a + b
+
+def restar(a, b):
+    return a - b
+
+def multiplicar(a, b):
+    return a * b
+
+def dividir(a, b):
+    if b == 0:
+        return "Error: division por cero"
+    return a / b
+
+print(f"5 + 3 = {sumar(5, 3)}")
+print(f"10 - 2 = {restar(10, 2)}")
+print(f"4 * 7 = {multiplicar(4, 7)}")
+print(f"20 / 4 = {dividir(20, 4)}")</py-repl>
+          </div>
+          <pre id="raw-code" class="raw-code"></pre>
         </article>
       </div>
     </section>
@@ -208,15 +281,16 @@
     const snippets = {
       "funciones-saludos": {
         title: "Funciones: saludo con parametros",
+        replId: "snippet-repl-0",
         code: `def saludar(nombre, edad=None, carrera=None):
     mensaje = f"Hola {nombre}"
     if edad is not None:
         if edad < 18:
-            mensaje += f"\\nQue joven eres con {edad} anios"
+            mensaje += f"\nQue joven eres con {edad} anios"
         else:
-            mensaje += f"\\nToda una experiencia con {edad} anios"
+            mensaje += f"\nToda una experiencia con {edad} anios"
     if carrera is not None:
-        mensaje += f"\\nEstudias {carrera}, mucho exito"
+        mensaje += f"\nEstudias {carrera}, mucho exito"
     return mensaje
 
 print(saludar("Pepe"))
@@ -225,6 +299,7 @@ print(saludar("Juan", 21, "Informatica"))`
       },
       "diccionarios-dragon": {
         title: "Diccionarios: filtrar peleadores",
+        replId: "snippet-repl-1",
         code: `peleadores = [
     {"nombre": "Goku", "raza": "Saiyajin", "poder_de_pelea": 80000},
     {"nombre": "Vegeta", "raza": "Saiyajin", "poder_de_pelea": 60000},
@@ -237,13 +312,14 @@ for p in peleadores:
     if p["poder_de_pelea"] > 40000:
         print("-", p["nombre"], p["poder_de_pelea"])
 
-print("\\nRaza Saiyajin")
+print("\nRaza Saiyajin")
 for p in peleadores:
     if p["raza"] == "Saiyajin":
         print("-", p["nombre"])`
       },
       "arreglos-umbral": {
         title: "Arreglos: filtrar por umbral",
+        replId: "snippet-repl-2",
         code: `piratas = ["Luffy", "Zoro", "Nami", "Robin", "Kaido"]
 recompensas = [3000, 1200, 366, 930, 4611]
 umbral = 1000
@@ -255,6 +331,7 @@ for i in range(len(piratas)):
       },
       "funciones-matematicas": {
         title: "Funciones: operaciones basicas",
+        replId: "snippet-repl-3",
         code: `def sumar(x, y):
     r = x + y
     if r > 100:
@@ -278,11 +355,12 @@ print("dividir(11,5)=", dividir(11, 5))`
       }
     };
 
-    const repl = document.getElementById("snippet-repl");
+    const rawCode = document.getElementById("raw-code");
     const title = document.getElementById("snippet-title");
     const copyBtn = document.getElementById("copy-btn");
     const copyStatus = document.getElementById("copy-status");
     const buttons = Array.from(document.querySelectorAll(".snippet-option"));
+    const allRepls = Array.from(document.querySelectorAll("[id^='snippet-repl-']"));
 
     let currentKey = "funciones-saludos";
 
@@ -290,8 +368,13 @@ print("dividir(11,5)=", dividir(11, 5))`
       currentKey = key;
       const data = snippets[key];
       title.textContent = data.title;
-      repl.textContent = data.code;
+      rawCode.textContent = data.code;
       copyStatus.textContent = "";
+
+      // Mostrar solo el py-repl que corresponde a este snippet
+      allRepls.forEach((repl) => {
+        repl.style.display = repl.id === data.replId ? "block" : "none";
+      });
 
       buttons.forEach((btn) => {
         if (btn.dataset.key === key) {
